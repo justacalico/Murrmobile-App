@@ -246,6 +246,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                       width: 32,
                                       height: 32,
                                       fit: BoxFit.cover,
+                                      errorWidget: (_, __, ___) => Container(
+                                        width: 32,
+                                        height: 32,
+                                        color: colorScheme.surfaceContainerHighest,
+                                        child: Icon(Icons.person,
+                                            size: 16, color: mutedColor),
+                                      ),
                                     )
                                   : Container(
                                       width: 32,

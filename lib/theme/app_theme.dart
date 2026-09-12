@@ -587,7 +587,11 @@ class AppTheme {
       );
 }
 
+// coverage:ignore-start
+// Convenience extension kept for callers outside lib/; nothing in the app
+// currently uses it.
 extension BuildContextTheme on BuildContext {
   TextTheme get textTheme => Theme.of(this).textTheme;
   ColorScheme get colorScheme => Theme.of(this).colorScheme;
 }
+// coverage:ignore-end

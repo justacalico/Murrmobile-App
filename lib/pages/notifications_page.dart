@@ -190,6 +190,11 @@ class _NotificationCard extends StatelessWidget {
                           width: 40,
                           height: 40,
                           fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Icon(
+                            Icons.person,
+                            size: 20,
+                            color: mutedColor,
+                          ),
                         ),
                       )
                     : Container(

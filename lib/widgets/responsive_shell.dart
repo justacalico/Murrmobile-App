@@ -160,7 +160,7 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
         onItemTapped: _onItemTapped,
         navigatorKeys: _navigatorKeys,
         isCollapsed: false,
-        onToggleCollapse: () {},
+        onToggleCollapse: () {}, // coverage:ignore-line
         canExpand: false,
       );
     }
@@ -172,7 +172,7 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
         onItemTapped: _onItemTapped,
         navigatorKeys: _navigatorKeys,
         isCollapsed: true,
-        onToggleCollapse: () {},
+        onToggleCollapse: () {}, // coverage:ignore-line
         canExpand: false,
       );
     }
@@ -257,6 +257,9 @@ class _DesktopLayout extends StatelessWidget {
                 ],
               ),
             ),
+            // coverage:ignore-start
+            // canExpand is always false at both call sites, so the collapse
+            // button never builds.
             trailing: canExpand
                 ? IconButton(
                     onPressed: onToggleCollapse,
@@ -267,6 +270,7 @@ class _DesktopLayout extends StatelessWidget {
                     ),
                   )
                 : null,
+            // coverage:ignore-end
             destinations: items
                 .map(
                   (item) => NavigationRailDestination(

@@ -2,6 +2,10 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:murrmobile/services/murrtube_api.dart';
 
+// Live tests against murrtube.net. Skipped by default; run with:
+//   flutter test test/api_real_test.dart --dart-define=LIVE_API=true
+const _runLive = bool.fromEnvironment('LIVE_API');
+
 void main() {
   setUpAll(() {
     final cookieFile = File('/tmp/murrtube_netscape_cookies.txt');
@@ -69,5 +73,5 @@ void main() {
       final props = await MurrtubeApi.getCookies();
       expect(props['effective_date'], isNotNull);
     });
-  });
+  }, skip: !_runLive);
 }
