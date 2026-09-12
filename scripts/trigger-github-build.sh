@@ -10,8 +10,7 @@ WORKFLOW="build.yml"
 
 REF="${1:-main}"
 BUILD_ALL="${2:-true}"
-CREATE_RELEASE="${3:-false}"
-PUSH_REF="${4:-HEAD}"
+PUSH_REF="${3:-HEAD}"
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -52,13 +51,12 @@ if [ -n "$MERGE_REQUEST_ID" ] && [ -z "$MERGE_REQUEST_URL" ]; then
   MERGE_REQUEST_URL="${CI_SERVER_URL:-https://gitlab.com}/${CI_PROJECT_PATH}/-/merge_requests/${MERGE_REQUEST_ID}"
 fi
 
-echo "Triggering GitHub workflow: $WORKFLOW @ $REF (build_all=$BUILD_ALL, create_release=$CREATE_RELEASE, merge_request_id=$MERGE_REQUEST_ID, merge_request_url=$MERGE_REQUEST_URL)"
+echo "Triggering GitHub workflow: $WORKFLOW @ $REF (build_all=$BUILD_ALL, merge_request_id=$MERGE_REQUEST_ID, merge_request_url=$MERGE_REQUEST_URL)"
 # Record the dispatch time (minus a clock-skew margin) so the run lookup can
 # ignore older runs for the same commit.
 TRIGGER_TS=$(date -u -d "@$(( $(date +%s) - 120 ))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
 if ! gh workflow run "$WORKFLOW" -R "$REPO" --ref "$REF" \
   -F build_all="$BUILD_ALL" \
-  -F create_release="$CREATE_RELEASE" \
   -F merge_request_id="$MERGE_REQUEST_ID" \
   -F merge_request_url="$MERGE_REQUEST_URL"; then
   echo "Failed to trigger GitHub workflow" >&2
