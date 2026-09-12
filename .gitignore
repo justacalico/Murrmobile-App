@@ -47,3 +47,10 @@ app.*.map.json
 # Sensitive cookie data
 /assets/cookies.txt
 *.cookies.txt
+
+# Android signing
+/android/app/key.properties
+/android/app/*.jks
+
+# Tool attachments (never commit)
+/.devinorium-attachments/
