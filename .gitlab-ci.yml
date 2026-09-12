@@ -4,11 +4,6 @@ spec:
       type: boolean
       default: true
       description: 'Build all targets (android, linux, windows, macos, ios)'
-    create_release:
-      type: boolean
-      default: false
-      description: 'Create a versioned release'
-
 ---
 
 stages:
@@ -87,13 +82,7 @@ github-dispatch:
     - apk add --no-cache bash curl jq git github-cli openssh-client
     - sh scripts/setup-ssh-key.sh GITHUB_SSH_PRIVATE_KEY github.com
   script:
-    - |
-      BUILD_ALL="$[[ inputs.build_all ]]"
-      CREATE_RELEASE="$[[ inputs.create_release ]]"
-      if [ "$CREATE_RELEASE" = "true" ]; then
-        BUILD_ALL="true"
-      fi
-      bash scripts/trigger-github-build.sh main "$BUILD_ALL" "$CREATE_RELEASE"
+    - bash scripts/trigger-github-build.sh main "$[[ inputs.build_all ]]"
 
 github-mr-build:
   stage: sync
@@ -107,7 +96,37 @@ github-mr-build:
     - apk add --no-cache bash curl jq git github-cli openssh-client
     - sh scripts/setup-ssh-key.sh GITHUB_SSH_PRIVATE_KEY github.com
   script:
-    - bash scripts/trigger-github-build.sh "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" true false "$CI_COMMIT_SHA"
+    - bash scripts/trigger-github-build.sh "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" true "$CI_COMMIT_SHA"
+
+auto-release:
+  stage: release
+  image: alpine:3.19
+  resource_group: auto-release
+  timeout: 30m
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  needs: [github-sync]
+  variables:
+    COCOGITTO_VERSION: "7.0.0"
+  before_script:
+    - apk add --no-cache bash curl git openssh-client
+    - curl -fsSL --retry 3 -o /tmp/cog.tar.gz "https://github.com/cocogitto/cocogitto/releases/download/${COCOGITTO_VERSION}/cocogitto-${COCOGITTO_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+    - mkdir -p /tmp/cog && tar -xzf /tmp/cog.tar.gz -C /tmp/cog
+    - install -m 755 /tmp/cog/x86_64-unknown-linux-musl/cog /usr/local/bin/cog
+    - git config user.name "GitLab CI"
+    - git config user.email "ci@gitlab.com"
+    - |
+      if [ -n "${GITLAB_TOKEN:-}" ]; then
+        git remote set-url origin "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      elif [ -n "${GITLAB_RELEASE_SSH_KEY:-}" ]; then
+        sh scripts/setup-ssh-key.sh GITLAB_RELEASE_SSH_KEY gitlab.com
+        git remote set-url origin "git@${CI_SERVER_HOST}:${CI_PROJECT_PATH}.git"
+      else
+        echo "ERROR: set GITLAB_TOKEN or GITLAB_RELEASE_SSH_KEY so the job can push to main" >&2
+        exit 1
+      fi
+  script:
+    - bash scripts/auto-release.sh
 
 github-release-sync:
   stage: release
