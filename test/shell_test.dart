@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/services/murrtube_api.dart';
 import 'package:murrmobile/widgets/responsive_shell.dart';
 
@@ -51,10 +50,9 @@ void main() {
     );
   }
 
-  testWidgets('bottom bar mode renders NavigationBar and switches tabs', (
+  testWidgets('bottom bar renders NavigationBar and switches tabs', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'navigation_mode': 'bottom_nav'});
     stubTabs();
     await pumpApp(tester, const ResponsiveShell(), size: const Size(500, 900));
     await settleAsync(tester);
@@ -77,7 +75,6 @@ void main() {
 
   testWidgets('authed bottom bar shows upload and activity', (tester) async {
     MurrtubeApi.setCookies('session_id=abc');
-    SharedPreferences.setMockInitialValues({'navigation_mode': 'bottom_nav'});
     stubTabs();
     await pumpApp(tester, const ResponsiveShell(), size: const Size(500, 900));
     await settleAsync(tester);
@@ -93,7 +90,6 @@ void main() {
 
   testWidgets('auth change resets tab and rebuilds keys', (tester) async {
     MurrtubeApi.setCookies('session_id=abc');
-    SharedPreferences.setMockInitialValues({'navigation_mode': 'bottom_nav'});
     stubTabs();
     await pumpApp(
       tester,
@@ -122,22 +118,19 @@ void main() {
     await tester.pump();
   });
 
-  testWidgets('collapsed rail mode shows no label text', (tester) async {
-    SharedPreferences.setMockInitialValues({
-      'navigation_mode': 'collapsed_sidebar',
-    });
+  testWidgets('narrow layout always uses bottom navigation bar', (tester) async {
     stubTabs();
     await pumpApp(tester, const ResponsiveShell(), size: const Size(500, 900));
     await settleAsync(tester);
     await tester.pump();
-    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('Murrmobile'), findsNothing);
   });
 
   testWidgets('system back pops inner navigator instead of app', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({'navigation_mode': 'bottom_nav'});
     env.server.onGet(
       '/',
       (req) => FakeResponse.inertia('Home', {

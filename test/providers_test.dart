@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/providers/theme_provider.dart';
-import 'package:murrmobile/providers/navigation_provider.dart';
 import 'package:murrmobile/utils/app_preferences.dart';
 import 'package:murrmobile/services/murrtube_api.dart';
 import 'package:murrmobile/theme/app_theme.dart';
@@ -22,45 +21,6 @@ void main() {
 
   tearDown(() {
     MurrtubeApi.clearCookies();
-  });
-
-  group('NavigationProvider', () {
-    test('loads default mode', () async {
-      SharedPreferences.setMockInitialValues({});
-      final provider = NavigationProvider();
-      expect(provider.navigationMode, 'collapsed_sidebar');
-      await Future<void>.delayed(Duration.zero);
-      expect(provider.navigationMode, 'collapsed_sidebar');
-    });
-
-    test('loads persisted mode', () async {
-      SharedPreferences.setMockInitialValues({'navigation_mode': 'bottom_nav'});
-      final provider = NavigationProvider();
-      await Future<void>.delayed(Duration.zero);
-      expect(provider.navigationMode, 'bottom_nav');
-    });
-
-    test('setNavigationMode persists and notifies', () async {
-      SharedPreferences.setMockInitialValues({});
-      final provider = NavigationProvider();
-      await Future<void>.delayed(Duration.zero);
-      var notified = 0;
-      provider.addListener(() => notified++);
-      await provider.setNavigationMode('rail');
-      expect(provider.navigationMode, 'rail');
-      expect(notified, 1);
-      expect(await AppPreferences.getNavigationMode(), 'rail');
-    });
-
-    test('setNavigationMode with same value is a no-op', () async {
-      SharedPreferences.setMockInitialValues({});
-      final provider = NavigationProvider();
-      await Future<void>.delayed(Duration.zero);
-      var notified = 0;
-      provider.addListener(() => notified++);
-      await provider.setNavigationMode('collapsed_sidebar');
-      expect(notified, 0);
-    });
   });
 
   group('ThemeProvider', () {

@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'services/murrtube_api.dart';
 import 'utils/cookie_loader.dart';
 import 'providers/theme_provider.dart';
-import 'providers/navigation_provider.dart';
 import 'widgets/responsive_shell.dart';
 import 'pages/about_page.dart';
 import 'pages/age_confirmation_page.dart';
@@ -26,7 +25,6 @@ class MurrtubeApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => NavigationProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
