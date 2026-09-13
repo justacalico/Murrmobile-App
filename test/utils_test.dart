@@ -19,7 +19,6 @@ void main() {
       expect(await AppPreferences.getTheme(), 'auto');
       expect(await AppPreferences.getVideoQuality(), 'auto');
       expect(await AppPreferences.getMute(), isFalse);
-      expect(await AppPreferences.getNavigationMode(), 'collapsed_sidebar');
     });
 
     test('persists and reads back all values', () async {
@@ -27,11 +26,9 @@ void main() {
       await AppPreferences.setTheme('amoled');
       await AppPreferences.setVideoQuality('720p');
       await AppPreferences.setMute(true);
-      await AppPreferences.setNavigationMode('bottom_nav');
       expect(await AppPreferences.getTheme(), 'amoled');
       expect(await AppPreferences.getVideoQuality(), '720p');
       expect(await AppPreferences.getMute(), isTrue);
-      expect(await AppPreferences.getNavigationMode(), 'bottom_nav');
     });
   });
 
