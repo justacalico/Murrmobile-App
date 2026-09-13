@@ -510,7 +510,7 @@ void main() {
       expect(find.text('Murrmobile'), findsOneWidget);
     });
 
-    testWidgets('narrow layout uses collapsed rail by default', (tester) async {
+    testWidgets('narrow layout uses bottom navigation bar', (tester) async {
       env.server.onGet(
         '/',
         (req) => FakeResponse.inertia('Home', {
@@ -525,9 +525,8 @@ void main() {
         size: const Size(500, 900),
       );
       await settleAsync(tester);
-      // Default navigation mode is collapsed_sidebar -> rail, no bottom nav.
-      expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(NavigationRail), findsNothing);
     });
 
     testWidgets('guest shell hides upload and activity tabs', (tester) async {

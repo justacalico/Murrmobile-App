@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/providers/theme_provider.dart';
-import 'package:murrmobile/providers/navigation_provider.dart';
 import 'package:murrmobile/theme/app_theme.dart';
 
 import 'fake_http.dart';
@@ -61,7 +60,6 @@ Future<void> pumpApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => NavigationProvider()),
       ],
       child: MaterialApp(
         theme: theme ?? AppTheme.dark,

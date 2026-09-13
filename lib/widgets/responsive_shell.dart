@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
 import '../pages/home_page.dart';
@@ -7,7 +6,6 @@ import '../pages/search_page.dart';
 import '../pages/upload_page.dart';
 import '../pages/notifications_page.dart';
 import '../pages/settings_page.dart';
-import '../providers/navigation_provider.dart';
 
 class NavItem {
   final String label;
@@ -148,10 +146,8 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 900;
-    final navigationProvider = context.watch<NavigationProvider>();
-    final navigationMode = navigationProvider.navigationMode;
 
     if (isDesktop) {
       return _DesktopLayout(
@@ -159,21 +155,6 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
         navigatorKeys: _navigatorKeys,
-        isCollapsed: false,
-        onToggleCollapse: () {}, // coverage:ignore-line
-        canExpand: false,
-      );
-    }
-
-    if (navigationMode == 'collapsed_sidebar') {
-      return _DesktopLayout(
-        items: _items,
-        selectedIndex: _selectedIndex,
-        onItemTapped: _onItemTapped,
-        navigatorKeys: _navigatorKeys,
-        isCollapsed: true,
-        onToggleCollapse: () {}, // coverage:ignore-line
-        canExpand: false,
       );
     }
 
@@ -201,18 +182,12 @@ class _DesktopLayout extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemTapped;
   final List<GlobalKey<NavigatorState>> navigatorKeys;
-  final bool isCollapsed;
-  final VoidCallback onToggleCollapse;
-  final bool canExpand;
 
   const _DesktopLayout({
     required this.items,
     required this.selectedIndex,
     required this.onItemTapped,
     required this.navigatorKeys,
-    required this.isCollapsed,
-    required this.onToggleCollapse,
-    this.canExpand = true,
   });
 
   @override
@@ -224,15 +199,13 @@ class _DesktopLayout extends StatelessWidget {
       body: Row(
         children: [
           NavigationRail(
-            extended: !isCollapsed,
+            extended: true,
             minExtendedWidth: 220,
             selectedIndex: selectedIndex,
             onDestinationSelected: onItemTapped,
             leading: Padding(
               padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: Row(
-                mainAxisAlignment:
-                    isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
@@ -243,34 +216,18 @@ class _DesktopLayout extends StatelessWidget {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  if (!isCollapsed) ...[
-                    const SizedBox(width: 12),
-                    Text(
-                      'Murrmobile',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
-                      ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Murrmobile',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurface,
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-            // coverage:ignore-start
-            // canExpand is always false at both call sites, so the collapse
-            // button never builds.
-            trailing: canExpand
-                ? IconButton(
-                    onPressed: onToggleCollapse,
-                    icon: Icon(
-                      isCollapsed
-                          ? Icons.chevron_right
-                          : Icons.chevron_left,
-                    ),
-                  )
-                : null,
-            // coverage:ignore-end
             destinations: items
                 .map(
                   (item) => NavigationRailDestination(
