@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.3.0 - 2026-09-13
+#### Features
+- 设置页添加应用数据导出导入功能 - (5522289) - HttpAnimations
+- 设置页新增应用信息区块 - (4c7c5f9) - HttpAnimations
+- 移除从 Murrtube 拉取主题的选项 - (4fb5e6f) - HttpAnimations
+
+- - -
+
 ## v0.2.0 - 2026-09-13
 #### Features
 - 小屏幕改用底部导航栏 - (24e9246) - HttpAnimations
