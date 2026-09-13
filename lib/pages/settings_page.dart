@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/murrtube_api.dart';
@@ -24,6 +25,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _loading = true;
   bool _wasLoggedIn = false;
   String _videoQuality = 'auto';
+  String _appVersion = '';
 
   @override
   void initState() {
@@ -35,8 +37,21 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadLocal() async {
     final quality = await AppPreferences.getVideoQuality();
+    String version = '';
+    try {
+      final info = await PackageInfo.fromPlatform();
+      version =
+          info.buildNumber.isEmpty || info.buildNumber == info.version
+              ? info.version
+              : '${info.version}+${info.buildNumber}';
+    } catch (e) {
+      debugPrint('PackageInfo error: $e');
+    }
     if (mounted) {
-      setState(() => _videoQuality = quality);
+      setState(() {
+        _videoQuality = quality;
+        _appVersion = version;
+      });
     }
   }
 
@@ -312,6 +327,83 @@ class _SettingsPageState extends State<SettingsPage> {
                         label: 'Cookie Policy',
                         onTap: () => launchUrl(
                           Uri.parse('https://murrtube.net/about/cookies'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _SectionLabel('About'),
+                _buildCard(
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/icon.png',
+                              width: 48,
+                              height: 48,
+                              semanticLabel: 'Murrmobile logo',
+                              errorBuilder: (_, _, _) => Icon(
+                                Icons.info_outline,
+                                size: 48,
+                                color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Murrmobile',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                if (_appVersion.isNotEmpty)
+                                  Text(
+                                    'Version $_appVersion',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                                    ),
+                                  ),
+                                Text(
+                                  'Unofficial client for murrtube.net',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildActionTile(
+                        icon: Icons.code,
+                        label: 'Source Code',
+                        subtitle: 'gitlab.com/HttpAnimations/Murrmobile-App',
+                        onTap: () => launchUrl(
+                          Uri.parse('https://gitlab.com/HttpAnimations/Murrmobile-App'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        showDivider: true,
+                      ),
+                      _buildActionTile(
+                        icon: Icons.balance_outlined,
+                        label: 'License',
+                        subtitle: 'GNU AGPL v3.0',
+                        onTap: () => launchUrl(
+                          Uri.parse('https://gitlab.com/HttpAnimations/Murrmobile-App/-/blob/main/LICENSE'),
                           mode: LaunchMode.externalApplication,
                         ),
                       ),
