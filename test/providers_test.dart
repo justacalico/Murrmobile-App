@@ -68,7 +68,7 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final provider = ThemeProvider();
       expect(provider.themeMode, ThemeMode.system);
-      expect(provider.themeData.brightness, Brightness.dark);
+      expect(provider.darkThemeData.brightness, Brightness.dark);
       expect(provider.currentTheme, 'auto');
     });
 
@@ -85,14 +85,14 @@ void main() {
       final provider = ThemeProvider();
       await Future<void>.delayed(Duration.zero);
       expect(provider.themeMode, ThemeMode.dark);
-      expect(provider.themeData.scaffoldBackgroundColor, AmoledColors.bg);
+      expect(provider.darkThemeData.scaffoldBackgroundColor, AmoledColors.bg);
     });
 
     test('dark theme maps to dark', () async {
       SharedPreferences.setMockInitialValues({'app_theme': 'dark'});
       final provider = ThemeProvider();
       await Future<void>.delayed(Duration.zero);
-      expect(provider.themeData.scaffoldBackgroundColor, AppColors.bg);
+      expect(provider.darkThemeData.scaffoldBackgroundColor, AppColors.bg);
     });
 
     test('murrtube theme without auth falls back to dark', () async {
@@ -100,7 +100,7 @@ void main() {
       final provider = ThemeProvider();
       await Future<void>.delayed(Duration.zero);
       expect(provider.themeMode, ThemeMode.dark);
-      expect(provider.themeData.scaffoldBackgroundColor, AppColors.bg);
+      expect(provider.darkThemeData.scaffoldBackgroundColor, AppColors.bg);
     });
 
     test('murrtube theme fetches remote preference when authed', () async {
@@ -157,7 +157,7 @@ void main() {
       final provider = ThemeProvider();
       await Future<void>.delayed(Duration.zero);
       await tester0();
-      expect(provider.themeData.scaffoldBackgroundColor, AmoledColors.bg);
+      expect(provider.darkThemeData.scaffoldBackgroundColor, AmoledColors.bg);
     });
 
     test('setTheme persists and notifies', () async {
