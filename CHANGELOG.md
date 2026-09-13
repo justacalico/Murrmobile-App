@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.1.1 - 2026-09-13
+#### Bug Fixes
+- 移除未打包的 Inter 字体引用 - (9c0315d) - HttpAnimations
+
+- - -
+
 ## v0.1.0 - 2026-09-12
 #### Features
 - nested navigation — each tab gets its own Navigator, shell stays visible - (786b396) - calico
