@@ -52,7 +52,6 @@ class AppTheme {
           error: AppColors.error,
         ),
         useMaterial3: true,
-        fontFamily: 'Inter',
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
@@ -235,7 +234,6 @@ class AppTheme {
           error: LightColors.error,
         ),
         useMaterial3: true,
-        fontFamily: 'Inter',
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
@@ -418,7 +416,6 @@ class AppTheme {
           error: AmoledColors.error,
         ),
         useMaterial3: true,
-        fontFamily: 'Inter',
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
