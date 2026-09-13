@@ -34,6 +34,8 @@ class MurrtubeApp extends StatelessWidget {
             title: 'Murrmobile',
             debugShowCheckedModeBanner: false,
             theme: themeProvider.themeData,
+            darkTheme: themeProvider.darkThemeData,
+            themeMode: themeProvider.themeMode,
             home: const AgeCheckWrapper(),
             routes: {
               '/about/terms': (_) => const AboutPage(type: 'terms'),

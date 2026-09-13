@@ -7,57 +7,24 @@ class ThemeProvider extends ChangeNotifier {
   String _theme = 'auto';
   String? _cachedMurrtubeTheme;
 
+  String get _effectiveTheme =>
+      _theme == 'murrtube' ? (_cachedMurrtubeTheme ?? 'dark') : _theme;
+
   ThemeMode get themeMode {
-    if (_theme == 'auto') {
-      return ThemeMode.system;
-    }
-    if (_theme == 'murrtube') {
-      final effectiveTheme = _cachedMurrtubeTheme ?? 'dark';
-      switch (effectiveTheme) {
-        case 'light':
-          return ThemeMode.light;
-        case 'amoled':
-          return ThemeMode.dark;
-        default:
-          return ThemeMode.dark;
-      }
-    }
-    switch (_theme) {
+    switch (_effectiveTheme) {
+      case 'auto':
+        return ThemeMode.system;
       case 'light':
         return ThemeMode.light;
-      case 'amoled':
-        return ThemeMode.dark;
       default:
         return ThemeMode.dark;
     }
   }
 
-  ThemeData get themeData {
-    if (_theme == 'auto') {
-      // For system theme, we need to check the platform brightness
-      // This is handled by MaterialApp's themeMode, so we return dark as base
-      return AppTheme.dark;
-    }
-    if (_theme == 'murrtube') {
-      final effectiveTheme = _cachedMurrtubeTheme ?? 'dark';
-      switch (effectiveTheme) {
-        case 'light':
-          return AppTheme.light;
-        case 'amoled':
-          return AppTheme.amoled;
-        default:
-          return AppTheme.dark;
-      }
-    }
-    switch (_theme) {
-      case 'light':
-        return AppTheme.light;
-      case 'amoled':
-        return AppTheme.amoled;
-      default:
-        return AppTheme.dark;
-    }
-  }
+  ThemeData get themeData => AppTheme.light;
+
+  ThemeData get darkThemeData =>
+      _effectiveTheme == 'amoled' ? AppTheme.amoled : AppTheme.dark;
 
   String get currentTheme => _theme;
 
