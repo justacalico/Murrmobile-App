@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.2.0 - 2026-09-13
+#### Features
+- 小屏幕改用底部导航栏 - (24e9246) - HttpAnimations
+
+- - -
+
 ## v0.1.1 - 2026-09-13
 #### Bug Fixes
 - 移除未打包的 Inter 字体引用 - (9c0315d) - HttpAnimations

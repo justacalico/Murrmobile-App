@@ -9,7 +9,6 @@ import '../utils/cookie_loader.dart';
 import '../utils/app_preferences.dart';
 import '../utils/page_transitions.dart';
 import '../providers/theme_provider.dart';
-import '../providers/navigation_provider.dart';
 import 'login_page.dart';
 import 'profile_page.dart';
 
@@ -237,41 +236,20 @@ class _SettingsPageState extends State<SettingsPage> {
                     builder: (context) {
                       final themeProvider = context.watch<ThemeProvider>();
                       final current = themeProvider.currentTheme;
-                      return Column(
-                        children: [
-                          _buildActionTile(
-                            icon: Icons.palette_outlined,
-                            label: 'Theme',
-                            subtitle: current[0].toUpperCase() + current.substring(1),
-                            onTap: () => _showSelectionSheet(
-                              title: 'Select Theme',
-                              options: themes.map((t) {
-                                final name = t['name'] ?? 'Theme';
-                                final value = t['value'] ?? name.toLowerCase();
-                                return _SelectionOption(label: name, value: value);
-                              }).toList(),
-                              selected: current,
-                              onSelect: (value) => themeProvider.setTheme(value),
-                            ),
-                            showDivider: true,
-                          ),
-                          _buildActionTile(
-                            icon: Icons.view_sidebar_outlined,
-                            label: 'Small Screen Navigation',
-                            subtitle: _getNavigationModeLabel(context),
-                            onTap: () => _showSelectionSheet(
-                              title: 'Select Small Screen Navigation',
-                              options: const [
-                                _SelectionOption(label: 'Collapsed Sidebar', value: 'collapsed_sidebar'),
-                                _SelectionOption(label: 'Bottom Bar', value: 'bottom_bar'),
-                              ],
-                              selected: context.read<NavigationProvider>().navigationMode,
-                              onSelect: (value) async {
-                                await context.read<NavigationProvider>().setNavigationMode(value);
-                              },
-                            ),
-                          ),
-                        ],
+                      return _buildActionTile(
+                        icon: Icons.palette_outlined,
+                        label: 'Theme',
+                        subtitle: current[0].toUpperCase() + current.substring(1),
+                        onTap: () => _showSelectionSheet(
+                          title: 'Select Theme',
+                          options: themes.map((t) {
+                            final name = t['name'] ?? 'Theme';
+                            final value = t['value'] ?? name.toLowerCase();
+                            return _SelectionOption(label: name, value: value);
+                          }).toList(),
+                          selected: current,
+                          onSelect: (value) => themeProvider.setTheme(value),
+                        ),
                       );
                     },
                   ),
@@ -531,18 +509,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
-  }
-
-  String _getNavigationModeLabel(BuildContext context) {
-    final navigationMode = context.watch<NavigationProvider>().navigationMode;
-    switch (navigationMode) {
-      case 'collapsed_sidebar':
-        return 'Collapsed Sidebar';
-      case 'bottom_bar':
-        return 'Bottom Bar';
-      default:
-        return 'Collapsed Sidebar';
-    }
   }
 }
 

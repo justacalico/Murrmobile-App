@@ -258,7 +258,6 @@ void main() {
       expect(find.text('Log In'), findsOneWidget);
       expect(find.text('Appearance'), findsOneWidget);
       expect(find.text('Theme'), findsOneWidget);
-      expect(find.text('Small Screen Navigation'), findsOneWidget);
       expect(find.text('Video Quality'), findsOneWidget);
       expect(find.text('Preferred Quality'), findsOneWidget);
       expect(find.text('Terms of Service'), findsOneWidget);
@@ -304,18 +303,6 @@ void main() {
       await tester.tap(find.text('Light'));
       await tester.pumpAndSettle();
       expect(await AppPreferences.getTheme(), 'light');
-    });
-
-    testWidgets('navigation mode sheet selects bottom bar', (tester) async {
-      await pumpApp(tester, const SettingsPage());
-      await settleAsync(tester);
-      await tester.pump();
-      await tester.tap(find.text('Small Screen Navigation'));
-      await tester.pumpAndSettle();
-      expect(find.text('Select Small Screen Navigation'), findsOneWidget);
-      await tester.tap(find.text('Bottom Bar'));
-      await tester.pumpAndSettle();
-      expect(await AppPreferences.getNavigationMode(), 'bottom_bar');
     });
 
     testWidgets('quality sheet selects 720p', (tester) async {
