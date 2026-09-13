@@ -8,7 +8,7 @@
 PRODUCT_NAME = murrmobile
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.murrmobile
+PRODUCT_BUNDLE_IDENTIFIER = gitlab.httpanimations.murrmobile
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 HttpAnimations. All rights reserved.

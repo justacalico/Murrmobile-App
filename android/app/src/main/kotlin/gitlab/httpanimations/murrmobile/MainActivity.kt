@@ -1,4 +1,4 @@
-package com.example.murrmobile
+package gitlab.httpanimations.murrmobile
 
 import io.flutter.embedding.android.FlutterActivity
 
