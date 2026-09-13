@@ -92,7 +92,8 @@ jobs:
       - name: Check commits
         run: |
           if git tag -l 'v[0-9]*' | grep -q .; then
-            cog check
+            git fetch origin main
+            cog check --ignore-merge-commits origin/main..HEAD
           else
             echo "No version tags yet, skipping commit check"
           fi
