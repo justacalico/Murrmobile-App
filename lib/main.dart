@@ -6,11 +6,13 @@ import 'utils/cookie_loader.dart';
 import 'providers/theme_provider.dart';
 import 'providers/navigation_provider.dart';
 import 'widgets/responsive_shell.dart';
+import 'widgets/window_frame.dart';
 import 'pages/about_page.dart';
 import 'pages/age_confirmation_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeWindowFrame();
   final cookies = await CookieLoader.load();
   if (cookies != null && cookies.isNotEmpty) {
     MurrtubeApi.setCookies(cookies);
@@ -36,6 +38,8 @@ class MurrtubeApp extends StatelessWidget {
             theme: themeProvider.themeData,
             darkTheme: themeProvider.darkThemeData,
             themeMode: themeProvider.themeMode,
+            builder: (context, child) =>
+                WindowFrame(child: child ?? const SizedBox.shrink()),
             home: const AgeCheckWrapper(),
             routes: {
               '/about/terms': (_) => const AboutPage(type: 'terms'),

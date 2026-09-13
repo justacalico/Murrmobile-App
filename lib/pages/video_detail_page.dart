@@ -13,6 +13,7 @@ import '../utils/page_transitions.dart';
 import '../widgets/video_card.dart';
 import '../widgets/linkify_text.dart';
 import '../widgets/tag_edit_sheet.dart';
+import '../widgets/window_frame.dart';
 import 'profile_page.dart';
 import 'search_page.dart';
 
@@ -50,13 +51,23 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   bool _postingComment = false;
   final _scrollController = ScrollController();
   final Map<String, GlobalKey> _commentKeys = {};
+  Object? _windowFsToken;
 
   @override
   void initState() {
     super.initState();
     _showComments = widget.commentId != null;
+    _windowFsToken = addWindowFullscreenListener(_onWindowFullScreenChange);
     _loadMutePref();
     _load();
+  }
+
+  // Keeps the in-app fullscreen UI in sync when the user exits OS
+  // fullscreen directly (green button, ctrl-cmd-f).
+  void _onWindowFullScreenChange(bool isFullScreen) {
+    if (!isFullScreen && _isFullscreen && mounted) {
+      _toggleFullscreen();
+    }
   }
 
   Future<void> _loadMutePref() async {
@@ -67,6 +78,11 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   @override
   void dispose() {
     WakelockPlus.disable();
+    removeWindowFullscreenListener(_windowFsToken);
+    if (_isFullscreen) {
+      windowContentFullscreen.value = false;
+      unawaited(setWindowFullScreen(false));
+    }
     _fullscreenUITimer?.cancel();
     _controller?.dispose();
     _commentController.dispose();
@@ -320,6 +336,8 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
       _isFullscreen = entering;
       _showFullscreenUI = true;
     });
+    windowContentFullscreen.value = entering;
+    unawaited(setWindowFullScreen(entering));
     if (entering) {
       _startFullscreenUITimer();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
