@@ -57,6 +57,8 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> reload() => _load();
+
   Future<void> setTheme(String theme) async {
     if (_theme == theme) return;
     _theme = theme;

@@ -15,6 +15,8 @@ class NavigationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> reload() => _load();
+
   Future<void> setNavigationMode(String mode) async {
     if (_navigationMode == mode) return;
     _navigationMode = mode;

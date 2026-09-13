@@ -250,7 +250,11 @@ void main() {
 
   group('SettingsPage', () {
     testWidgets('guest shows log in tile and sections', (tester) async {
-      await pumpApp(tester, const SettingsPage());
+      await pumpApp(
+        tester,
+        const SettingsPage(),
+        size: const Size(500, 1400),
+      );
       await tester.pump();
       await settleAsync(tester);
       await tester.pump();
@@ -353,7 +357,11 @@ void main() {
     });
 
     testWidgets('legal links launch urls', (tester) async {
-      await pumpApp(tester, const SettingsPage());
+      await pumpApp(
+        tester,
+        const SettingsPage(),
+        size: const Size(500, 1400),
+      );
       await settleAsync(tester);
       await tester.pump();
       await tester.tap(find.text('Terms of Service'));
@@ -380,7 +388,11 @@ void main() {
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({'age_confirmed': true});
-      await pumpApp(tester, const SettingsPage());
+      await pumpApp(
+        tester,
+        const SettingsPage(),
+        size: const Size(500, 1400),
+      );
       await settleAsync(tester);
       await tester.pump();
       await tester.tap(find.text('Reset Age Confirmation'));
