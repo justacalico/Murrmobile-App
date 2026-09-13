@@ -69,11 +69,6 @@ class _SettingsPageState extends State<SettingsPage> {
         _props = props;
         _loading = false;
       });
-      // Refresh theme from murrtube when settings are loaded
-      if (mounted) {
-        final themeProvider = context.read<ThemeProvider>();
-        await themeProvider.refreshMurrtubeTheme();
-      }
     } catch (e) {
       debugPrint('SettingsPage error: $e');
       setState(() {
@@ -90,7 +85,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final themes = [
       {'name': 'Auto (System)', 'value': 'auto'},
-      {'name': 'Pull from Murrtube', 'value': 'murrtube', 'note': 'Only dark mode available'},
       {'name': 'Dark', 'value': 'dark'},
       {'name': 'Light', 'value': 'light'},
       {'name': 'AMOLED', 'value': 'amoled'},
@@ -254,8 +248,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               options: themes.map((t) {
                                 final name = t['name'] ?? 'Theme';
                                 final value = t['value'] ?? name.toLowerCase();
-                                final note = t['note'];
-                                return _SelectionOption(label: name, value: value, note: note);
+                                return _SelectionOption(label: name, value: value);
                               }).toList(),
                               selected: current,
                               onSelect: (value) => themeProvider.setTheme(value),
@@ -510,15 +503,6 @@ class _SettingsPageState extends State<SettingsPage> {
                           fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                         ),
                       ),
-                      subtitle: opt.note != null
-                          ? Text(
-                              opt.note!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: mutedColor,
-                              ),
-                            )
-                          : null,
                       onTap: () {
                         onSelect(opt.value);
                         Navigator.of(ctx).pop();
@@ -565,6 +549,5 @@ class _SettingsPageState extends State<SettingsPage> {
 class _SelectionOption {
   final String label;
   final String value;
-  final String? note;
-  const _SelectionOption({required this.label, required this.value, this.note});
+  const _SelectionOption({required this.label, required this.value});
 }

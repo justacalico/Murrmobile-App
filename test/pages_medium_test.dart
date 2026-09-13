@@ -301,7 +301,6 @@ void main() {
       await tester.tap(find.text('Theme'));
       await tester.pumpAndSettle();
       expect(find.text('Select Theme'), findsOneWidget);
-      expect(find.text('Only dark mode available'), findsOneWidget);
       await tester.tap(find.text('Light'));
       await tester.pumpAndSettle();
       expect(await AppPreferences.getTheme(), 'light');
