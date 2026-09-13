@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/murrtube_api.dart';
 import '../utils/cookie_loader.dart';
 import '../utils/app_preferences.dart';
+import '../utils/data_transfer.dart';
 import '../utils/page_transitions.dart';
 import '../providers/theme_provider.dart';
 import 'login_page.dart';
@@ -26,6 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _wasLoggedIn = false;
   String _videoQuality = 'auto';
   String _appVersion = '';
+  final _importController = TextEditingController();
 
   @override
   void initState() {
@@ -63,6 +66,12 @@ class _SettingsPageState extends State<SettingsPage> {
       _wasLoggedIn = nowLoggedIn;
       _load();
     }
+  }
+
+  @override
+  void dispose() {
+    _importController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -293,6 +302,27 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                _SectionLabel('Backup'),
+                _buildCard(
+                  child: Column(
+                    children: [
+                      _buildActionTile(
+                        icon: Icons.upload_outlined,
+                        label: 'Export App Data',
+                        subtitle: 'Settings and login saved to a file',
+                        onTap: _exportData,
+                        showDivider: true,
+                      ),
+                      _buildActionTile(
+                        icon: Icons.download_outlined,
+                        label: 'Import App Data',
+                        subtitle: 'Restore a backup from another device',
+                        onTap: _showImportDialog,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
                 _SectionLabel('Legal - Murrtube.net'),
                 _buildCard(
                   child: Column(
@@ -428,6 +458,156 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ],
             ),
+    );
+  }
+
+  Future<void> _exportData() async {
+    // iPad presents the share sheet as a popover and needs an anchor rect.
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+    try {
+      final file = await DataTransfer.exportToFile();
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Murrmobile backup',
+        sharePositionOrigin: origin,
+      );
+    } catch (e) {
+      // shareXFiles is unimplemented on Linux, so save the backup into the
+      // documents folder and show where it landed.
+      debugPrint('Share failed ($e), saving to documents instead');
+      try {
+        final file = await DataTransfer.exportToDocuments();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Backup saved to ${file.path}')),
+          );
+        }
+      } catch (e2) {
+        debugPrint('SettingsPage export error: $e2');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Export failed')),
+          );
+        }
+      }
+    }
+  }
+
+  void _showImportDialog() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final mutedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
+    var importing = false;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: colorScheme.surface,
+          title: Text(
+            'Import App Data',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Open the backup file on your other device and paste its contents below. It contains your login session, so keep it private.',
+                style: TextStyle(fontSize: 13, color: mutedColor, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _importController,
+                maxLines: 6,
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                  fontFamilyFallback: ['monospace'],
+                ),
+                decoration: InputDecoration(
+                  hintText: '{"app":"murrmobile", ...}',
+                  hintStyle: TextStyle(color: mutedColor),
+                  filled: true,
+                  fillColor: colorScheme.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: importing ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: importing
+                  ? null
+                  : () async {
+                      setDialogState(() => importing = true);
+                      try {
+                        await DataTransfer.importJson(
+                          _importController.text.trim(),
+                        );
+                        if (!ctx.mounted) return;
+                        Navigator.of(ctx).pop();
+                        _importController.clear();
+                        if (!mounted) return;
+                        final themeProvider = context.read<ThemeProvider>();
+                        await themeProvider.reload();
+                        await _loadLocal();
+                        _load();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Data imported')),
+                          );
+                        }
+                      } on FormatException catch (e) {
+                        debugPrint('SettingsPage import error: $e');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Invalid backup file'),
+                            ),
+                          );
+                        }
+                        if (ctx.mounted) {
+                          setDialogState(() => importing = false);
+                        }
+                      } catch (e) {
+                        debugPrint('SettingsPage import error: $e');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Import failed')),
+                          );
+                        }
+                        if (ctx.mounted) {
+                          setDialogState(() => importing = false);
+                        }
+                      }
+                    },
+              child: importing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Import'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -347,7 +347,11 @@ void main() {
     });
 
     testWidgets('legal links launch urls', (tester) async {
-      await pumpApp(tester, const SettingsPage());
+      await pumpApp(
+        tester,
+        const SettingsPage(),
+        size: const Size(500, 1400),
+      );
       await settleAsync(tester);
       await tester.pump();
       await tester.tap(find.text('Terms of Service'));
@@ -378,7 +382,7 @@ void main() {
         buildNumber: '45',
         buildSignature: '',
       );
-      await pumpApp(tester, const SettingsPage());
+      await pumpApp(tester, const SettingsPage(), size: const Size(500, 1400));
       await settleAsync(tester);
       await tester.pump();
       expect(find.text('About'), findsOneWidget);

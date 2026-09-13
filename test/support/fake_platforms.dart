@@ -228,6 +228,9 @@ class FakePathProvider extends Fake
   /// When true, documents lookups fail like a device with no storage.
   bool failDocuments = false;
 
+  /// When true, temp dir lookups fail.
+  bool failTemporary = false;
+
   String _dir(String name) {
     final d = Directory('${root.path}/$name')..createSync(recursive: true);
     return d.path;
@@ -241,7 +244,8 @@ class FakePathProvider extends Fake
   Future<String?> getApplicationSupportPath() async => _dir('support');
 
   @override
-  Future<String?> getTemporaryPath() async => _dir('tmp');
+  Future<String?> getTemporaryPath() async =>
+      failTemporary ? null : _dir('tmp');
 
   @override
   Future<String?> getApplicationCachePath() async => _dir('cache');

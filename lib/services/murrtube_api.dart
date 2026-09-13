@@ -35,6 +35,7 @@ class MurrtubeApi {
   static const String baseUrl = 'https://murrtube.net';
   static String? _cookieString;
 
+  static String? get cookies => _cookieString;
   static bool get hasCookies => _cookieString != null && _cookieString!.isNotEmpty;
   static bool get isAuthenticated {
     if (_cookieString == null) return false;
@@ -44,6 +45,7 @@ class MurrtubeApi {
 
   static void setCookies(String cookies) {
     _cookieString = cookies;
+    currentUserSlug = null;
   }
 
   static void clearCookies() {
