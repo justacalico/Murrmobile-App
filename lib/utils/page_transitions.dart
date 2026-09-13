@@ -25,7 +25,9 @@ class AppPageRoute<T> extends PageRouteBuilder<T> {
         );
 
   static RouteTransitionsBuilder _transitionsBuilder() {
-    // Use Cupertino on Apple platforms for native feel
+    // coverage:ignore-start
+    // Use Cupertino on Apple platforms for native feel.
+    // Platform.isIOS/isMacOS read the real OS; tests always run elsewhere.
     if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
       return (context, animation, secondaryAnimation, child) {
         return CupertinoPageTransition(
@@ -36,6 +38,7 @@ class AppPageRoute<T> extends PageRouteBuilder<T> {
         );
       };
     }
+    // coverage:ignore-end
 
     // Android / Linux / Windows / Web: modern shared-axis-like slide + fade
     return (context, animation, secondaryAnimation, child) {
