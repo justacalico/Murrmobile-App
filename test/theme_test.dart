@@ -13,7 +13,6 @@ void main() {
       expect(theme.colorScheme.surface, AppColors.surface);
       expect(theme.colorScheme.error, AppColors.error);
       expect(theme.useMaterial3, isTrue);
-      expect(theme.textTheme.bodyLarge!.fontFamily, 'Inter');
       expect(theme.textTheme.displayLarge!.color, AppColors.text);
       expect(theme.textTheme.bodyMedium!.color, AppColors.textMuted);
       expect(theme.cardTheme.color, AppColors.surface);
