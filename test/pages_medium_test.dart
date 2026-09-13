@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/pages/search_page.dart';
 import 'package:murrmobile/pages/settings_page.dart';
@@ -21,6 +22,13 @@ void main() {
   setUp(() {
     env = installTestEnv();
     SharedPreferences.setMockInitialValues({});
+    PackageInfo.setMockInitialValues(
+      appName: '',
+      packageName: '',
+      version: '',
+      buildNumber: '',
+      buildSignature: '',
+    );
     MurrtubeApi.clearCookies();
     MurrtubeApi.currentUserSlug = null;
   });
@@ -250,7 +258,7 @@ void main() {
 
   group('SettingsPage', () {
     testWidgets('guest shows log in tile and sections', (tester) async {
-      await pumpApp(tester, const SettingsPage());
+      await pumpApp(tester, const SettingsPage(), size: const Size(500, 1400));
       await tester.pump();
       await settleAsync(tester);
       await tester.pump();
@@ -376,11 +384,51 @@ void main() {
       );
     });
 
+    testWidgets('about section shows app info and version', (tester) async {
+      PackageInfo.setMockInitialValues(
+        appName: 'Murrmobile',
+        packageName: 'gitlab.httpanimations.murrmobile',
+        version: '1.2.3',
+        buildNumber: '45',
+        buildSignature: '',
+      );
+      await pumpApp(tester, const SettingsPage());
+      await settleAsync(tester);
+      await tester.pump();
+      expect(find.text('About'), findsOneWidget);
+      expect(find.text('Murrmobile'), findsOneWidget);
+      expect(find.text('Version 1.2.3+45'), findsOneWidget);
+      expect(find.text('Unofficial client for murrtube.net'), findsOneWidget);
+      expect(find.text('Source Code'), findsOneWidget);
+      expect(find.text('License'), findsOneWidget);
+      expect(find.text('GNU AGPL v3.0'), findsOneWidget);
+    });
+
+    testWidgets('about links launch urls', (tester) async {
+      await pumpApp(tester, const SettingsPage(), size: const Size(500, 1400));
+      await settleAsync(tester);
+      await tester.pump();
+      await tester.tap(find.text('Source Code'));
+      await settleAsync(tester);
+      expect(
+        env.urlLauncher.launchedUrls,
+        contains('https://gitlab.com/HttpAnimations/Murrmobile-App'),
+      );
+      await tester.tap(find.text('License'));
+      await settleAsync(tester);
+      expect(
+        env.urlLauncher.launchedUrls,
+        contains(
+          'https://gitlab.com/HttpAnimations/Murrmobile-App/-/blob/main/LICENSE',
+        ),
+      );
+    });
+
     testWidgets('reset age confirmation clears pref and shows snackbar', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({'age_confirmed': true});
-      await pumpApp(tester, const SettingsPage());
+      await pumpApp(tester, const SettingsPage(), size: const Size(500, 1400));
       await settleAsync(tester);
       await tester.pump();
       await tester.tap(find.text('Reset Age Confirmation'));
