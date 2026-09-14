@@ -403,20 +403,6 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
     return '${two(minutes)}:${two(seconds)}';
   }
 
-  int _crossAxisCount(double width) {
-    if (width >= 1600) return 5;
-    if (width >= 1200) return 4;
-    if (width >= 900) return 4;
-    if (width >= 600) return 3;
-    return 2;
-  }
-
-  double _cardAspectRatio(double width) {
-    if (width < 600) return 10 / 13;
-    if (width < 900) return 10 / 12;
-    return 10 / 11;
-  }
-
   Future<void> _deleteComment(String commentId) async {
     try {
       await MurrtubeApi.deleteComment(commentId);
@@ -1564,7 +1550,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                   const SizedBox(height: 14),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final cols = _crossAxisCount(constraints.maxWidth);
+                      final cols = VideoCard.gridColumnCount(constraints.maxWidth - 40);
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: GridView.builder(
@@ -1572,7 +1558,12 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: cols,
-                            childAspectRatio: _cardAspectRatio(constraints.maxWidth),
+                            childAspectRatio: VideoCard.gridAspectRatio(
+                              context,
+                              width: constraints.maxWidth - 40,
+                              columns: cols,
+                              spacing: 12,
+                            ),
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
                           ),

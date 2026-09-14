@@ -83,25 +83,11 @@ class _HomePageState extends State<HomePage> {
     await _load();
   }
 
-  int _crossAxisCount(double width) {
-    if (width >= 1600) return 5;
-    if (width >= 1200) return 4;
-    if (width >= 900) return 4;
-    if (width >= 600) return 3;
-    return 2;
-  }
-
-  double _cardAspectRatio(double width) {
-    if (width < 600) return 10 / 13;
-    if (width < 900) return 10 / 12;
-    return 10 / 11;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final cols = _crossAxisCount(size.width);
-
+    // didChangeDependencies re-checks auth on any inherited change, so keep
+    // a MediaQuery dependency for view resizes to reach it.
+    MediaQuery.sizeOf(context);
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
@@ -185,48 +171,58 @@ class _HomePageState extends State<HomePage> {
             else
               SliverPadding(
                 padding: const EdgeInsets.all(20),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: cols,
-                    childAspectRatio: _cardAspectRatio(size.width),
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index >= _media.length) {
-                        if (_hasMore) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) => _loadMore());
-                          return Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      }
-                      final media = _media[index];
-                      return VideoCard(
-                        media: media,
-                        heroTag: 'video-thumb-${media.shortCode}',
-                        onTap: () {
-                          pushPage(
-                            context,
-                            builder: (_) => VideoDetailPage(
-                              shortCode: media.shortCode,
-                              heroTag: 'video-thumb-${media.shortCode}',
-                            ),
+                sliver: SliverLayoutBuilder(
+                  builder: (context, constraints) {
+                    final cols = VideoCard.gridColumnCount(constraints.crossAxisExtent);
+                    return SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: cols,
+                        childAspectRatio: VideoCard.gridAspectRatio(
+                          context,
+                          width: constraints.crossAxisExtent,
+                          columns: cols,
+                          spacing: 16,
+                        ),
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index >= _media.length) {
+                            if (_hasMore) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) => _loadMore());
+                              return Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }
+                          final media = _media[index];
+                          return VideoCard(
+                            media: media,
+                            heroTag: 'video-thumb-${media.shortCode}',
+                            onTap: () {
+                              pushPage(
+                                context,
+                                builder: (_) => VideoDetailPage(
+                                  shortCode: media.shortCode,
+                                  heroTag: 'video-thumb-${media.shortCode}',
+                                ),
+                              );
+                            },
                           );
                         },
-                      );
-                    },
-                    childCount: _media.length + (_hasMore ? 1 : 0),
-                  ),
+                        childCount: _media.length + (_hasMore ? 1 : 0),
+                      ),
+                    );
+                  },
                 ),
               ),
           ],

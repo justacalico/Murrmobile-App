@@ -133,6 +133,106 @@ void main() {
       expect(find.byIcon(Icons.broken_image_outlined), findsOneWidget);
       expect(find.byIcon(Icons.person), findsWidgets);
     });
+
+    test('gridColumnCount picks columns by width', () {
+      expect(VideoCard.gridColumnCount(400), 2);
+      expect(VideoCard.gridColumnCount(600), 3);
+      expect(VideoCard.gridColumnCount(899), 3);
+      expect(VideoCard.gridColumnCount(900), 4);
+      expect(VideoCard.gridColumnCount(1200), 4);
+      expect(VideoCard.gridColumnCount(1599), 4);
+      expect(VideoCard.gridColumnCount(1600), 5);
+    });
+
+    testWidgets('gridAspectRatio matches thumbnail plus info block', (
+      tester,
+    ) async {
+      double? ratio;
+      await pumpApp(
+        tester,
+        Builder(
+          builder: (context) {
+            ratio = VideoCard.gridAspectRatio(
+              context,
+              width: 400,
+              columns: 2,
+              spacing: 16,
+            );
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+      // cellWidth 192 -> height = 192 / 1.6 + 68.8 = 188.8.
+      expect(ratio, closeTo(192 / 188.8, 0.01));
+    });
+
+    testWidgets('card fills grid cell without dead space below stats', (
+      tester,
+    ) async {
+      await pumpApp(
+        tester,
+        Scaffold(
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              return GridView(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: VideoCard.gridAspectRatio(
+                    context,
+                    width: constraints.maxWidth - 40,
+                    columns: 2,
+                    spacing: 16,
+                  ),
+                  crossAxisSpacing: 16,
+                ),
+                children: [VideoCard(media: testMedia(), onTap: () {})],
+              );
+            },
+          ),
+        ),
+        size: const Size(400, 800),
+      );
+      await tester.pump();
+      final cardRect = tester.getRect(find.byType(VideoCard));
+      final statsRect = tester.getRect(find.text('3.9K'));
+      // Bottom padding plus a few points of font-metric slack. The old
+      // fixed ratios left ~70px of dead space here.
+      expect(cardRect.bottom - statsRect.bottom, lessThan(14));
+    });
+
+    testWidgets('card does not overflow at large text scale', (tester) async {
+      await pumpApp(
+        tester,
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: LayoutBuilder(
+              builder: (context, constraints) {
+                return GridView(
+                  padding: const EdgeInsets.all(20),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: VideoCard.gridAspectRatio(
+                      context,
+                      width: constraints.maxWidth - 40,
+                      columns: 2,
+                      spacing: 16,
+                    ),
+                    crossAxisSpacing: 16,
+                  ),
+                  children: [VideoCard(media: testMedia(), onTap: () {})],
+                );
+              },
+            ),
+          ),
+        ),
+        size: const Size(400, 800),
+      );
+      await tester.pump();
+      // A RenderFlex overflow would throw during pump.
+      expect(find.byType(VideoCard), findsOneWidget);
+    });
   });
 
   group('LinkifyText', () {
