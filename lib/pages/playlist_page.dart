@@ -77,20 +77,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
     }
   }
 
-  int _crossAxisCount(double width) {
-    if (width >= 1600) return 5;
-    if (width >= 1200) return 4;
-    if (width >= 900) return 4;
-    if (width >= 600) return 3;
-    return 2;
-  }
-
-  double _cardAspectRatio(double width) {
-    if (width < 600) return 10 / 13;
-    if (width < 900) return 10 / 12;
-    return 10 / 11;
-  }
-
   String _formatCount(int? n) {
     if (n == null) return '0';
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
@@ -301,11 +287,16 @@ class _PlaylistPageState extends State<PlaylistPage> {
               padding: const EdgeInsets.all(16),
               sliver: SliverLayoutBuilder(
                 builder: (context, constraints) {
-                  final cols = _crossAxisCount(constraints.crossAxisExtent);
+                  final cols = VideoCard.gridColumnCount(constraints.crossAxisExtent);
                   return SliverGrid(
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: cols,
-                      childAspectRatio: _cardAspectRatio(constraints.crossAxisExtent),
+                      childAspectRatio: VideoCard.gridAspectRatio(
+                        context,
+                        width: constraints.crossAxisExtent,
+                        columns: cols,
+                        spacing: 12,
+                      ),
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                     ),

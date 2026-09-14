@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -14,6 +16,39 @@ class VideoCard extends StatelessWidget {
     required this.onTap,
     this.heroTag,
   });
+
+  static const double thumbnailAspectRatio = 16 / 10;
+
+  static int gridColumnCount(double width) {
+    if (width >= 1600) return 5;
+    if (width >= 900) return 4;
+    if (width >= 600) return 3;
+    return 2;
+  }
+
+  // Cell height must match the thumbnail plus the info block or the card
+  // gets dead space at the bottom. Width is the space the cells share,
+  // after any grid padding.
+  static double gridAspectRatio(
+    BuildContext context, {
+    required double width,
+    required int columns,
+    double spacing = 16,
+  }) {
+    assert(columns > 0);
+    final cellWidth = math.max(
+      (width - spacing * (columns - 1)) / columns,
+      1.0,
+    );
+    final scale = MediaQuery.textScalerOf(context).scale(1.0);
+    // Padding and gaps fixed, text rows scale, rows keep icon minimums.
+    final infoHeight = 19 +
+        16.9 * scale +
+        math.max(18, 16.2 * scale) +
+        math.max(12, 14.9 * scale);
+    final height = cellWidth / thumbnailAspectRatio + infoHeight;
+    return cellWidth / height;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +77,7 @@ class VideoCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AspectRatio(
-                aspectRatio: 16 / 10,
+                aspectRatio: thumbnailAspectRatio,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -141,12 +176,16 @@ class VideoCard extends StatelessWidget {
                           color: mutedColor,
                         ),
                         const SizedBox(width: 3),
-                        Text(
-                          _formatCount(media.viewsCount),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: mutedColor,
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            _formatCount(media.viewsCount),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: mutedColor,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -156,12 +195,16 @@ class VideoCard extends StatelessWidget {
                           color: mutedColor,
                         ),
                         const SizedBox(width: 3),
-                        Text(
-                          _formatCount(media.likesCount),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: mutedColor,
-                            fontWeight: FontWeight.w500,
+                        Flexible(
+                          child: Text(
+                            _formatCount(media.likesCount),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: mutedColor,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
