@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.3.1 - 2026-09-14
+#### Bug Fixes
+- 视频卡片网格单元格过高导致底部留白 - (5c26fde) - HttpAnimations
+
+- - -
+
 ## v0.3.0 - 2026-09-13
 #### Features
 - 设置页添加应用数据导出导入功能 - (5522289) - HttpAnimations
