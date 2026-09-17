@@ -48,15 +48,7 @@ flutter build windows --release    # Windows
 
 ## Downloads
 
-Prebuilt binaries are on the [releases page](https://github.com/openlyst/Murrmobile-App/releases).
-
-| Platform | Download |
-|----------|----------|
-| Android | APK / AAB |
-| iOS | Unsigned IPA |
-| Linux | ZIP (x64) |
-| macOS | Unsigned ZIP |
-| Windows | ZIP (x64) |
+Prebuilt binaries are on the [releases page](https://github.com/justacalico/Murrmobile-App/releases).
 
 > This is an **unofficial** fan app. Not affiliated with or endorsed by murrtube.net. The Inertia.js protocol the app relies on can change at any time and break things.
 >
