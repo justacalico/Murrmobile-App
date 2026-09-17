@@ -38,13 +38,20 @@ dev_dependencies:
 flutter_launcher_icons:
   image_path: "assets/icon.png"
   ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#0F0F11"
   android: true
+  # Icon-maskable-*.png are maintained by hand: the generator just copies the
+  # regular icons, but maskables must be full-bleed on background_color.
   web:
     generate: true
     background_color: "#0F0F11"
     theme_color: "#FF6B35"
   macos:
     generate: true
+  windows:
+    generate: true
+    icon_size: 256
 
 flutter:
   uses-material-design: true
