@@ -23,7 +23,6 @@ Unofficial app for [murrtube.net](https://murrtube.net). Built in Flutter, rever
 - Notifications feed
 - Upload videos from the app
 - Dark / light / AMOLED themes
-- Adaptive layout (bottom nav on phones, rail on tablets/desktop)
 
 ## Building
 
