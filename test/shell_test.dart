@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:murrmobile/services/murrtube_api.dart';
+import 'package:murrmobile/utils/fullscreen_state.dart';
 import 'package:murrmobile/widgets/responsive_shell.dart';
 
 import 'support/fake_http.dart';
@@ -21,6 +22,7 @@ void main() {
   tearDown(() {
     MurrtubeApi.clearCookies();
     MurrtubeApi.currentUserSlug = null;
+    fullscreenMode.value = false;
   });
 
   void stubTabs() {
@@ -155,9 +157,7 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    // Resize forces a rebuild so the shell's PopScope canPop reflects the
-    // pushed inner route before the back dispatch consults it.
-    tester.view.physicalSize = const Size(501, 900);
+    // The nav observer rebuild refreshes PopScope.canPop after the push.
     await tester.pump();
     // System back: PopScope didPop=false -> pops the tab navigator.
     final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
@@ -174,6 +174,128 @@ void main() {
       () => Future<void>.delayed(const Duration(milliseconds: 100)),
     );
     await tester.pump(const Duration(seconds: 11));
+  });
+
+  void stubVideoTabs() {
+    env.server.onGet(
+      '/',
+      (req) => FakeResponse.inertia('Home', {
+        'media': [mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')],
+        'pagination': paginationJson(),
+        'announcements': const [],
+      }),
+      matchQuery: (uri) => uri.queryParameters.containsKey('tab'),
+    );
+    stubTabs();
+    env.server.onGet(
+      RegExp('/v/'),
+      (req) => FakeResponse.inertia(
+        'Video',
+        videoProps(
+          medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> openVideo(WidgetTester tester) async {
+    await tester.tap(find.text('Test Video'));
+    await tester.pump();
+    await settleAsync(tester);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  }
+
+  testWidgets('fullscreen hides the bottom navigation bar', (tester) async {
+    stubVideoTabs();
+    await pumpApp(tester, const ResponsiveShell(), size: const Size(500, 900));
+    await settleAsync(tester);
+    await tester.pump();
+    expect(find.byType(NavigationBar), findsOneWidget);
+
+    await openVideo(tester);
+    await tester.tap(find.byIcon(Icons.fullscreen));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byIcon(Icons.fullscreen_exit), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.fullscreen_exit));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(NavigationBar), findsOneWidget);
+    await unmountForImages(tester);
+  });
+
+  testWidgets('fullscreen hides the desktop navigation rail', (tester) async {
+    stubVideoTabs();
+    await pumpApp(tester, const ResponsiveShell(), size: const Size(1200, 800));
+    await settleAsync(tester);
+    await tester.pump();
+    expect(find.byType(NavigationRail), findsOneWidget);
+
+    await openVideo(tester);
+    await tester.tap(find.byIcon(Icons.fullscreen));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(NavigationRail), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.fullscreen_exit));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(NavigationRail), findsOneWidget);
+    await unmountForImages(tester);
+  });
+
+  testWidgets('disposing while fullscreen resets the flag', (tester) async {
+    stubVideoTabs();
+    await pumpApp(tester, const ResponsiveShell(), size: const Size(500, 900));
+    await settleAsync(tester);
+    await tester.pump();
+
+    await openVideo(tester);
+    await tester.tap(find.byIcon(Icons.fullscreen));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(fullscreenMode.value, isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pump();
+    expect(fullscreenMode.value, isFalse);
+    await tester.pump(const Duration(seconds: 11));
+  });
+
+  testWidgets('system back exits fullscreen without popping the page', (
+    tester,
+  ) async {
+    stubVideoTabs();
+    await pumpApp(tester, const ResponsiveShell(), size: const Size(500, 900));
+    await settleAsync(tester);
+    await tester.pump();
+
+    await openVideo(tester);
+    await tester.tap(find.byIcon(Icons.fullscreen));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(NavigationBar), findsNothing);
+
+    // The shell blocks the root pop and forwards it to the inner navigator;
+    // the page's own PopScope converts that into a fullscreen exit.
+    final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+    await nav.maybePop();
+    await tester.pump();
+    await settleAsync(tester);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Test Video'), findsOneWidget);
+    expect(find.byIcon(Icons.fullscreen), findsOneWidget);
+    await unmountForImages(tester);
   });
 
   testWidgets('system back on desktop pops inner navigator', (tester) async {
@@ -200,7 +322,6 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    tester.view.physicalSize = const Size(1201, 800);
     await tester.pump();
     final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
     await nav.maybePop();

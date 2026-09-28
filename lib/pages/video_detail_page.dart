@@ -9,6 +9,7 @@ import '../models/comment.dart';
 import '../models/playlist.dart';
 import '../services/murrtube_api.dart';
 import '../utils/app_preferences.dart';
+import '../utils/fullscreen_state.dart';
 import '../utils/page_transitions.dart';
 import '../widgets/video_card.dart';
 import '../widgets/linkify_text.dart';
@@ -67,6 +68,18 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   @override
   void dispose() {
     WakelockPlus.disable();
+    if (_isFullscreen) {
+      // Dispose can run while the widget tree is locked (route teardown),
+      // so the flag resets on the next frame instead of mid-unmount.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        fullscreenMode.value = false;
+      });
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+    }
     _fullscreenUITimer?.cancel();
     _controller?.dispose();
     _commentController.dispose();
@@ -320,6 +333,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
       _isFullscreen = entering;
       _showFullscreenUI = true;
     });
+    fullscreenMode.value = entering;
     if (entering) {
       _startFullscreenUITimer();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
