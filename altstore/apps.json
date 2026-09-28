@@ -1,0 +1,85 @@
+{
+  "name": "Murrmobile",
+  "identifier": "gitlab.httpanimations.murrmobile.source",
+  "iconURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/raw/main/assets/icon.png",
+  "website": "https://gitlab.com/HttpAnimations/Murrmobile-App",
+  "apps": [
+    {
+      "name": "Murrmobile",
+      "bundleIdentifier": "gitlab.httpanimations.murrmobile",
+      "developerName": "HttpAnimations",
+      "subtitle": "Unofficial murrtube.net client",
+      "localizedDescription": "A native Flutter client for murrtube.net. Browse, watch, upload, and comment on videos.",
+      "iconURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/raw/main/assets/icon.png",
+      "category": "entertainment",
+      "version": "0.3.1",
+      "versionDate": "2026-09-14T03:28:25.000+00:00",
+      "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.3.1/downloads/murrmobile-ios-arm64-unsigned.ipa",
+      "size": 8939650,
+      "versions": [
+        {
+          "version": "0.3.1",
+          "date": "2026-09-14T03:28:25.000+00:00",
+          "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.3.1/downloads/murrmobile-ios-arm64-unsigned.ipa",
+          "size": 8939650,
+          "minOSVersion": "13.0"
+        },
+        {
+          "version": "0.3.0",
+          "date": "2026-09-13T18:55:00.000+00:00",
+          "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.3.0/downloads/murrmobile-ios-arm64-unsigned.ipa",
+          "size": 8938563,
+          "minOSVersion": "13.0"
+        },
+        {
+          "version": "0.1.1",
+          "date": "2026-09-13T17:15:00.000+00:00",
+          "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.1.1/downloads/murrmobile-ios-arm64-unsigned.ipa",
+          "size": 8892574,
+          "minOSVersion": "13.0"
+        },
+        {
+          "version": "0.1.0",
+          "date": "2026-09-12T05:30:43.000+00:00",
+          "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.1.0/downloads/murrmobile-ios-arm64-unsigned.ipa",
+          "size": 8894979,
+          "minOSVersion": "13.0"
+        }
+      ]
+    }
+  ],
+  "news": [
+    {
+      "identifier": "release-v0.3.1",
+      "title": "Murrmobile 0.3.1",
+      "caption": "Version 0.3.1 is now available.",
+      "date": "2026-09-14T03:28:25.000+00:00",
+      "url": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.3.1",
+      "appID": "gitlab.httpanimations.murrmobile"
+    },
+    {
+      "identifier": "release-v0.3.0",
+      "title": "Murrmobile 0.3.0",
+      "caption": "Version 0.3.0 is now available.",
+      "date": "2026-09-13T18:55:00.000+00:00",
+      "url": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.3.0",
+      "appID": "gitlab.httpanimations.murrmobile"
+    },
+    {
+      "identifier": "release-v0.1.1",
+      "title": "Murrmobile 0.1.1",
+      "caption": "Version 0.1.1 is now available.",
+      "date": "2026-09-13T17:15:00.000+00:00",
+      "url": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.1.1",
+      "appID": "gitlab.httpanimations.murrmobile"
+    },
+    {
+      "identifier": "release-v0.1.0",
+      "title": "Murrmobile 0.1.0",
+      "caption": "Version 0.1.0 is now available.",
+      "date": "2026-09-12T05:30:43.000+00:00",
+      "url": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.1.0",
+      "appID": "gitlab.httpanimations.murrmobile"
+    }
+  ]
+}

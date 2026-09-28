@@ -50,6 +50,28 @@ flutter build windows --release    # Windows
 
 Prebuilt binaries are on the [releases page](https://github.com/justacalico/Murrmobile-App/releases).
 
+### iOS via AltStore
+
+The unsigned iOS builds ship through a self-updating AltStore source. In AltStore go to **Sources -> +** and add:
+
+```
+https://httpanimations.gitlab.io/murrmobile-app/altstore/apps.json
+```
+
+Or open this link on your device:
+
+```
+altstore://source?url=https://httpanimations.gitlab.io/murrmobile-app/altstore/apps.json
+```
+
+If Pages is not deployed yet, the raw file works too:
+
+```
+https://gitlab.com/HttpAnimations/Murrmobile-App/-/raw/main/altstore/apps.json
+```
+
+New releases are added to the source automatically by the release pipeline.
+
 > This is an **unofficial** fan app. Not affiliated with or endorsed by murrtube.net. The Inertia.js protocol the app relies on can change at any time and break things.
 >
 > Hoping to maybe become part of the official stack one day, but for now this is just a side project.

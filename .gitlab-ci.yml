@@ -145,3 +145,25 @@ github-release-sync:
     - sh scripts/setup-ssh-key.sh GITLAB_RELEASE_SSH_KEY gitlab.com
   script:
     - bash scripts/sync-from-github.sh
+    - bash scripts/update-altstore.sh
+
+# Serves the AltStore source so it can be added via
+# https://httpanimations.gitlab.io/murrmobile-app/altstore/apps.json
+# in addition to the raw repo URL. Fetches the file fresh off main since
+# update-altstore.sh commits the new copy during github-release-sync.
+pages:
+  stage: release
+  image: alpine:3.19
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "api"
+  needs: [github-release-sync]
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - mkdir -p public/altstore
+    - wget -q -O public/altstore/apps.json "https://gitlab.com/${CI_PROJECT_PATH}/-/raw/main/altstore/apps.json"
+    - grep -q '"identifier"' public/altstore/apps.json
+  artifacts:
+    paths:
+      - public
