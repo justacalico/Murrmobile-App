@@ -38,7 +38,10 @@ write_apps_json() {
     ver="${tag#v}"
     ipa_url=$(jq -r --arg n "$IPA_ASSET" \
       '[.assets.links[]? | select(.name == $n)][0] | .direct_asset_url // .url // empty' <<<"$rel")
-    [ -z "$ipa_url" ] && continue
+    if [ -z "$ipa_url" ]; then
+      echo "Warning: $tag has no $IPA_ASSET link, skipping" >&2
+      continue
+    fi
 
     pkg_id=$(glab api "projects/$PROJECT_ID/packages?package_name=$PKG_NAME&package_version=$tag" |
       jq -r '.[0].id // empty')
@@ -47,12 +50,24 @@ write_apps_json() {
       size=$(glab api "projects/$PROJECT_ID/packages/$pkg_id/package_files?per_page=100" |
         jq -r --arg n "$IPA_ASSET" '[.[] | select(.file_name == $n)][0].size // empty')
     fi
-    date=$(jq -r '.released_at // .created_at' <<<"$rel")
+    if [ -z "$size" ]; then
+      # Fall back to the download URL's content-length.
+      size=$(curl -fsSIL "$ipa_url" 2>/dev/null | grep -i '^content-length' | tail -n1 | tr -dc '0-9')
+    fi
+    if [ -z "$size" ]; then
+      echo "Warning: could not determine ipa size for $tag, skipping" >&2
+      continue
+    fi
 
-    versions=$(jq --arg v "$ver" --arg d "$date" --arg u "$ipa_url" --arg min "$MIN_OS" \
-      --argjson s "${size:-null}" \
-      '. + [({version: $v, date: $d, downloadURL: $u, minOSVersion: $min}
-             + (if $s then {size: $s} else {} end))]' <<<"$versions")
+    # Use the tagged commit's date: the release record is recreated on
+    # every sync, so released_at changes each run and would spam commits.
+    date=$(glab api "projects/$PROJECT_ID/repository/commits/$tag" |
+      jq -r '.committed_date // empty' || true)
+    [ -z "$date" ] && date=$(jq -r '.released_at // .created_at' <<<"$rel")
+
+    versions=$(jq --arg v "$ver" --arg d "$date" --arg u "$ipa_url" \
+      --arg min "$MIN_OS" --argjson s "$size" \
+      '. + [{version: $v, date: $d, downloadURL: $u, size: $s, minOSVersion: $min}]' <<<"$versions")
 
     if [ "$count" -lt 5 ]; then
       news=$(jq --arg id "release-$tag" --arg t "Murrmobile $ver" \
@@ -64,8 +79,8 @@ write_apps_json() {
   done < <(jq -c '.[]' <<<"$releases")
 
   if [ "$count" -eq 0 ]; then
-    echo "No releases with an ipa asset found, leaving apps.json untouched" >&2
-    return 1
+    echo "Warning: no releases with an ipa asset found, leaving apps.json untouched" >&2
+    return 0
   fi
 
   jq -n \
@@ -86,7 +101,7 @@ write_apps_json() {
       identifier: $src_id,
       iconURL: $icon,
       website: $website,
-      apps: [({
+      apps: [{
         name: $app_name,
         bundleIdentifier: $bundle,
         developerName: $dev,
@@ -99,7 +114,7 @@ write_apps_json() {
         downloadURL: $versions[0].downloadURL,
         size: $versions[0].size,
         versions: $versions
-      } | with_entries(select(.value != null)))],
+      }],
       news: $news
     }' > altstore/apps.json
 
@@ -113,11 +128,12 @@ if [ "${1:-}" = "--no-push" ]; then
 fi
 
 # In CI: base the update on the latest remote main, commit and push with
-# ci.skip so the commit does not start another pipeline.
+# ci.skip so the commit does not start another pipeline. Retry the whole
+# thing when a concurrent pusher (auto-release, merges) moves main.
 mkdir -p altstore
 
 if [ -n "${GITLAB_TOKEN:-}" ]; then
-  git remote add altstore-push "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${PROJECT_PATH}.git" 2>/dev/null || true
+  git remote add altstore-push "https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST:-gitlab.com}/${PROJECT_PATH}.git" 2>/dev/null || true
 elif [ -n "${GITLAB_RELEASE_SSH_KEY:-}" ]; then
   git remote add altstore-push "git@${CI_SERVER_HOST:-gitlab.com}:${PROJECT_PATH}.git" 2>/dev/null || true
 else
@@ -125,18 +141,25 @@ else
   exit 1
 fi
 
-git fetch altstore-push main
-git checkout -B main FETCH_HEAD
-
-write_apps_json
-
 git config user.name "GitLab CI"
 git config user.email "ci@gitlab.com"
-git add altstore/apps.json
-if git diff --cached --quiet; then
-  echo "AltStore source already up to date"
-  exit 0
-fi
-git commit -m "chore: 更新 AltStore 源"
-git push -o ci.skip altstore-push HEAD:main
-echo "Pushed updated AltStore source to main"
+
+for attempt in 1 2 3; do
+  git fetch --depth 1 altstore-push main
+  git checkout -B main FETCH_HEAD
+  write_apps_json
+  git add altstore/apps.json
+  if git diff --cached --quiet; then
+    echo "AltStore source already up to date"
+    exit 0
+  fi
+  git commit -q -m "chore: 更新 AltStore 源"
+  if git push -o ci.skip altstore-push HEAD:main; then
+    echo "Pushed updated AltStore source to main"
+    exit 0
+  fi
+  echo "Push rejected, main moved; retrying (attempt $attempt)"
+done
+
+echo "Failed to push AltStore update after 3 attempts" >&2
+exit 1

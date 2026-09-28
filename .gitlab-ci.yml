@@ -158,9 +158,12 @@ pages:
     - if: $CI_PIPELINE_SOURCE == "trigger"
     - if: $CI_PIPELINE_SOURCE == "api"
   needs: [github-release-sync]
+  variables:
+    GIT_STRATEGY: none
   script:
     - mkdir -p public/altstore
     - wget -q -O public/altstore/apps.json "https://gitlab.com/${CI_PROJECT_PATH}/-/raw/main/altstore/apps.json"
+    - grep -q '"identifier"' public/altstore/apps.json
   artifacts:
     paths:
       - public
