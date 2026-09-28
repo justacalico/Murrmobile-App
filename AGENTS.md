@@ -1,11 +1,9 @@
 # Murrmobile
 
 - Read README.md, AGENTS.md, and CLAUDE.md before proposing or making any changes.
-- Use subagents to review code harshly for bugs, issues, and correctness before any merge.
 - Do not create god files; keep modules focused and small.
 - Do not blindly merge. Verify behavior by running the test suite locally. Do not finish until `flutter test` passes. Do not push commits or check GitLab pipeline status as a substitute for local verification.
 - Add new tests for everything new. Every piece of new code must be testable in Dart (Flutter).
-- Do a final harsh subagent review of all changes before finishing.
 - Do not squash merge requests. Use a regular merge commit so each conventional commit is preserved for the changelog and history.
 
 ## Local verification
