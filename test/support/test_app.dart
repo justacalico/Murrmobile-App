@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/providers/theme_provider.dart';
 import 'package:murrmobile/theme/app_theme.dart';
+import 'package:murrmobile/utils/fullscreen_state.dart';
 
 import 'fake_http.dart';
 import 'fake_platforms.dart';
@@ -31,6 +32,7 @@ TestEnv installTestEnv({FakeServer? server}) {
   TestWidgetsFlutterBinding.ensureInitialized();
   final s = installFakeHttp(server);
   SharedPreferences.setMockInitialValues({});
+  fullscreenMode.value = false;
   CachedNetworkImageProvider.defaultCacheManager = FakeCacheManager();
   return TestEnv(
     server: s,
