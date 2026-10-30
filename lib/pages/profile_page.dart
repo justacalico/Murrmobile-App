@@ -6,6 +6,7 @@ import '../models/playlist.dart';
 import '../models/user.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
+import '../widgets/linkify_text.dart';
 import '../widgets/video_card.dart';
 import 'video_detail_page.dart';
 import 'playlist_page.dart';
@@ -430,8 +431,8 @@ class _ProfilePageState extends State<ProfilePage>
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                _bio!,
+              child: LinkifyText(
+                text: _bio!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,

@@ -6,12 +6,14 @@ class LinkifyText extends StatelessWidget {
   final String text;
   final TextStyle? style;
   final TextStyle? linkStyle;
+  final TextAlign? textAlign;
 
   const LinkifyText({
     super.key,
     required this.text,
     this.style,
     this.linkStyle,
+    this.textAlign,
   });
 
   static final _urlRegex = RegExp(
@@ -59,6 +61,7 @@ class LinkifyText extends StatelessWidget {
     }
 
     return RichText(
+      textAlign: textAlign ?? TextAlign.start,
       text: TextSpan(style: defaultStyle, children: spans),
     );
   }
