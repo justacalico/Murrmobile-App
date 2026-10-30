@@ -171,7 +171,7 @@ void main() {
     });
 
     testWidgets('api error still renders page', (tester) async {
-      env.server.onGet('/about/terms', (req) => const FakeResponse(500, 'err'));
+      env.server.onGet('/about/terms', (req) => const FakeResponse(500, '{"error":"x"}'));
       await pumpApp(tester, const AboutPage(type: 'terms'));
       await settleAsync(tester);
       await tester.pump();
@@ -351,12 +351,25 @@ void main() {
       expect(latest.uri.queryParameters['tab'], 'latest');
     });
 
-    testWidgets('load failure shows empty state', (tester) async {
-      env.server.onGet('/', (req) => const FakeResponse(500, 'err'));
+    testWidgets('load failure shows retry state and recovers', (tester) async {
+      var attempts = 0;
+      env.server.onGet('/', (req) {
+        attempts++;
+        return attempts == 1
+            ? const FakeResponse(500, '{"error":"x"}')
+            : homePage();
+      });
       await pumpApp(tester, const HomePage());
       await settleAsync(tester);
       await tester.pump();
-      expect(find.text('No videos found'), findsOneWidget);
+      expect(find.text('Couldn\'t load videos'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await settleAsync(tester);
+      await tester.pump();
+      expect(attempts, greaterThan(1));
+      expect(find.text('Couldn\'t load videos'), findsNothing);
     });
 
     testWidgets('loads more pages when scrolled to end', (tester) async {
@@ -393,6 +406,57 @@ void main() {
       expect(
         env.server.requests.where((r) => r.uri.queryParameters['page'] == '2'),
         isNotEmpty,
+      );
+    });
+
+    testWidgets('failed page load retries the same page', (tester) async {
+      final media = List.generate(
+        8,
+        (i) => mediaJson(id: 'm$i', shortCode: 'C$i', title: 'V$i'),
+      );
+      env.server.onGet(
+        '/',
+        (req) => FakeResponse.inertia('Home', {
+          'media': media,
+          'pagination': paginationJson(pages: 3, next: '/?tab=trending&page=2'),
+          'announcements': const [],
+        }),
+        matchQuery: (uri) => uri.queryParameters['page'] != '2',
+      );
+      var page2Attempts = 0;
+      env.server.onGet(
+        '/',
+        (req) {
+          page2Attempts++;
+          return page2Attempts == 1
+              ? const FakeResponse(500, '{"error":"x"}')
+              : FakeResponse.inertia('Home', {
+                  'media': [mediaJson(id: 'm9', shortCode: 'C9', title: 'V9')],
+                  'pagination': paginationJson(page: 2, pages: 3),
+                  'announcements': const [],
+                });
+        },
+        matchQuery: (uri) => uri.queryParameters['page'] == '2',
+      );
+      await pumpApp(tester, const HomePage(), size: const Size(500, 900));
+      await settleAsync(tester);
+      await tester.pump();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
+      await tester.pump();
+      await settleAsync(tester);
+      await tester.pump();
+      expect(page2Attempts, 1);
+      expect(find.text('Retry'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await settleAsync(tester);
+      await tester.pump();
+      expect(page2Attempts, 2);
+      expect(find.text('V9'), findsOneWidget);
+      // Page 3 must not have been requested during the failed attempt.
+      expect(
+        env.server.requests.where((r) => r.uri.queryParameters['page'] == '3'),
+        isEmpty,
       );
     });
 
@@ -459,7 +523,7 @@ void main() {
     testWidgets('load error shows empty state', (tester) async {
       env.server.onGet(
         '/notifications',
-        (req) => const FakeResponse(500, 'err'),
+        (req) => const FakeResponse(500, '{"error":"x"}'),
       );
       await pumpApp(tester, const NotificationsPage());
       await settleAsync(tester);
