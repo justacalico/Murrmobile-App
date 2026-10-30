@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/media.dart';
 import '../models/playlist.dart';
 import '../models/user.dart';
@@ -532,7 +533,7 @@ class _ProfilePageState extends State<ProfilePage>
           if (_telegramUrl != null && _telegramUrl!.isNotEmpty) ...[
             const SizedBox(height: 10),
             GestureDetector(
-              onTap: () {/* url_launcher */},
+              onTap: () => _launchExternal(_telegramUrl!),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -780,6 +781,13 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
+Future<void> _launchExternal(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
 class _SocialLinkData {
   final IconData icon;
   final String label;
@@ -804,7 +812,7 @@ class _SocialLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {/* url_launcher */},
+      onTap: () => _launchExternal(url),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
