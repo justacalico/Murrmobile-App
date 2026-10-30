@@ -335,6 +335,21 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('backgrounding the app pauses playback', (tester) async {
+    stubVideo(
+      videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),
+    );
+    await pumpDetail(tester);
+    await settleAsync(tester);
+    await tester.pump();
+    expect(env.videoPlayer.playingStates.values, contains(true));
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(env.videoPlayer.playingStates.values, everyElement(isFalse));
+    await unmount(tester);
+  });
+
   testWidgets('mute toggle flips icon and sets volume', (tester) async {
     stubVideo(
       videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),
