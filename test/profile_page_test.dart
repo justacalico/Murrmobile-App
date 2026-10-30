@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -46,6 +48,31 @@ void main() {
     // Subscribe buttons hidden for guests.
     expect(find.text('Subscribe'), findsNothing);
     expect(find.text('Block'), findsNothing);
+  });
+
+  testWidgets('tab switch shows spinner while stats stay visible', (
+    tester,
+  ) async {
+    final playlistsDone = Completer<FakeResponse>();
+    env.server.onGet(
+      '/test-user',
+      (req) => playlistsDone.future,
+      matchQuery: (uri) => uri.queryParameters['tab'] == 'playlists',
+    );
+    stubProfile();
+    await pumpApp(tester, const ProfilePage(slug: 'test-user'));
+    await settleAsync(tester);
+    await tester.pump();
+    expect(find.text('Subscribers'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Playlists'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    expect(find.text('Subscribers'), findsOneWidget);
+
+    playlistsDone.complete(FakeResponse.inertia('Profile', profileProps()));
+    await settleAsync(tester);
   });
 
   testWidgets('user not found on missing profile', (tester) async {

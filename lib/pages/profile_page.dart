@@ -557,6 +557,18 @@ class _ProfilePageState extends State<ProfilePage>
     ColorScheme colorScheme,
     Color mutedColor,
   ) {
+    if (_loading && _media.isEmpty) {
+      return Center(
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: colorScheme.primary,
+          ),
+        ),
+      );
+    }
     if (_media.isEmpty) {
       return Center(
         child: Column(
@@ -636,6 +648,18 @@ class _ProfilePageState extends State<ProfilePage>
     ColorScheme colorScheme,
     Color mutedColor,
   ) {
+    if (_loading && _playlists.isEmpty) {
+      return Center(
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: colorScheme.primary,
+          ),
+        ),
+      );
+    }
     if (_playlists.isEmpty) {
       return Center(
         child: Column(
