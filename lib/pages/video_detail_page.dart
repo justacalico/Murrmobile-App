@@ -28,7 +28,8 @@ class VideoDetailPage extends StatefulWidget {
   State<VideoDetailPage> createState() => _VideoDetailPageState();
 }
 
-class _VideoDetailPageState extends State<VideoDetailPage> {
+class _VideoDetailPageState extends State<VideoDetailPage>
+    with WidgetsBindingObserver {
   Media? _medium;
   List<Comment> _comments = [];
   List<Media> _watchMore = [];
@@ -55,9 +56,18 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _showComments = widget.commentId != null;
     _loadMutePref();
     _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _controller?.pause();
+    }
   }
 
   Future<void> _loadMutePref() async {
@@ -67,6 +77,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     WakelockPlus.disable();
     if (_isFullscreen) {
       // Dispose can run while the widget tree is locked (route teardown),
