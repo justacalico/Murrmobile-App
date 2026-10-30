@@ -17,6 +17,7 @@ class TestEnv {
   final FakeUrlLauncherPlatform urlLauncher;
   final FakeWakelockPlus wakelock;
   final FakePathProvider pathProvider;
+  final FakeSharePlatform share;
 
   TestEnv({
     required this.server,
@@ -24,6 +25,7 @@ class TestEnv {
     required this.urlLauncher,
     required this.wakelock,
     required this.pathProvider,
+    required this.share,
   });
 }
 
@@ -40,6 +42,7 @@ TestEnv installTestEnv({FakeServer? server}) {
     urlLauncher: installFakeUrlLauncher(),
     wakelock: installFakeWakelock(),
     pathProvider: installFakePathProvider(),
+    share: installFakeShare(),
   );
 }
 

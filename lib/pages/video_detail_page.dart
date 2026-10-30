@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/media.dart';
 import '../models/comment.dart';
@@ -1505,6 +1506,14 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                         ))
                                     .toList(),
                               ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.share, size: 18),
+                              onPressed: () => Share.share(
+                                'https://murrtube.net/v/${widget.shortCode}',
+                              ),
+                              tooltip: 'Share',
+                              visualDensity: VisualDensity.compact,
                             ),
                             if (MurrtubeApi.isAuthenticated)
                               IconButton(
