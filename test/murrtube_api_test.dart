@@ -44,6 +44,9 @@ void main() {
 
       MurrtubeApi.setCookies('a=1; session_id=abc');
       expect(MurrtubeApi.hasCookies, isTrue);
+      expect(MurrtubeApi.isAuthenticated, isFalse);
+
+      MurrtubeApi.setCookies('a=1; _murrtube_v3_session=abc; session_id=abc');
       expect(MurrtubeApi.isAuthenticated, isTrue);
 
       MurrtubeApi.clearCookies();
@@ -63,7 +66,7 @@ void main() {
             'announcements': const [],
           },
           headers: {
-            'set-cookie': ['session_id=xyz; Path=/'],
+            'set-cookie': ['_murrtube_v3_session=xyz; Path=/'],
           },
         ),
         matchQuery: (uri) => uri.queryParameters['page'] == '2',
@@ -578,7 +581,7 @@ void main() {
 
     test('blockUser sends PUT with csrf header', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPut('/users/x/block', (req) => const FakeResponse(200, ''));
       await MurrtubeApi.blockUser('x');
       final req = server.requestsTo('/users/x/block').single;
@@ -699,7 +702,7 @@ void main() {
 
     test('getMyPlaylists parses playlist list', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onGet(
         '/playlists/mine',
         (req) => FakeResponse.json({
@@ -713,14 +716,14 @@ void main() {
 
     test('getMyPlaylists throws on failure', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onGet('/playlists/mine', (req) => const FakeResponse(500, ''));
       expect(() => MurrtubeApi.getMyPlaylists(), throwsA(isA<HttpException>()));
     });
 
     test('createPlaylist posts multipart fields', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPost('/playlists', (req) => FakeResponse.json({'slug': 'new'}));
       final playlist = await MurrtubeApi.createPlaylist(
         name: 'New List',
@@ -737,7 +740,7 @@ void main() {
 
     test('createPlaylist works without description', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPost('/playlists', (req) => FakeResponse.json({'slug': 's'}));
       final playlist = await MurrtubeApi.createPlaylist(
         name: 'N',
@@ -748,7 +751,7 @@ void main() {
 
     test('createPlaylist throws on failure', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPost('/playlists', (req) => const FakeResponse(500, ''));
       expect(
         () => MurrtubeApi.createPlaylist(name: 'N', visibility: 'public'),
@@ -758,7 +761,7 @@ void main() {
 
     test('addToPlaylist posts multipart fields', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPost(
         '/playlists/p1/items',
         (req) => const FakeResponse(200, ''),
@@ -775,7 +778,7 @@ void main() {
 
     test('addToPlaylist throws on failure', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPost(
         '/playlists/p1/items',
         (req) => const FakeResponse(500, ''),
@@ -792,7 +795,7 @@ void main() {
 
     test('editTags posts json and parses returned tags', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPost(
         '/tag_edits',
         (req) => FakeResponse.json({
@@ -813,7 +816,7 @@ void main() {
 
     test('editTags throws on failure', () async {
       stubCsrf();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       server.onPost('/tag_edits', (req) => const FakeResponse(500, ''));
       expect(
         () => MurrtubeApi.editTags(
@@ -865,7 +868,7 @@ void main() {
     }
 
     test('mutation helpers send the cookie header when logged in', () async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       stubCsrf();
       server.onPost('/likes', (req) => const FakeResponse(200, '{}'));
       server.onDelete('/likes/m1', (req) => const FakeResponse(200, '{}'));
@@ -935,7 +938,7 @@ void main() {
 
   group('authed retry paths', () {
     test('empty-body 409 refetches root with cookie header', () async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       var first = true;
       server.onGet('/', (req) {
         if (first && req.uri.queryParameters.containsKey('tab')) {
@@ -955,7 +958,7 @@ void main() {
     });
 
     test('age-check POST sends cookie header when logged in', () async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       var first = true;
       server.onGet('/', (req) {
         if (first) {

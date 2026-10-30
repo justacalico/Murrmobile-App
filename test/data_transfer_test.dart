@@ -91,7 +91,7 @@ void main() {
       installTestEnv();
       await AppPreferences.setTheme('amoled');
       await AppPreferences.setVideoQuality('720p');
-      await CookieLoader.save('session_id=froma; age_check=yes');
+      await CookieLoader.save('_murrtube_v3_session=froma; session_id=froma; age_check=yes');
       final backup = await DataTransfer.exportJson();
 
       // Simulate a fresh device.
@@ -108,7 +108,7 @@ void main() {
       expect(MurrtubeApi.isAuthenticated, isTrue);
       expect(
         await CookieLoader.load(),
-        'session_id=froma; age_check=yes',
+        '_murrtube_v3_session=froma; session_id=froma; age_check=yes',
       );
     });
 
@@ -136,7 +136,7 @@ void main() {
 
     test('import without cookies clears login', () async {
       installTestEnv();
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       await CookieLoader.save('session_id=abc');
       final backup = jsonEncode({
         'app': 'murrmobile',
@@ -213,11 +213,11 @@ void main() {
         'format_version': 1,
         'cookies':
             '# Netscape HTTP Cookie File\n'
-            'murrtube.net\tTRUE\t/\tTRUE\t9999999999\tsession_id\tabc123\n',
+            'murrtube.net\tTRUE\t/\tTRUE\t9999999999\t_murrtube_v3_session\tabc123\n',
       });
       await DataTransfer.importJson(backup);
       expect(MurrtubeApi.isAuthenticated, isTrue);
-      expect(await CookieLoader.load(), 'session_id=abc123');
+      expect(await CookieLoader.load(), '_murrtube_v3_session=abc123');
     });
 
     test('import rejects non-string cookies', () async {
@@ -239,8 +239,8 @@ void main() {
 
     test('import with no cookies key leaves login untouched', () async {
       installTestEnv();
-      MurrtubeApi.setCookies('session_id=keepme');
-      await CookieLoader.save('session_id=keepme');
+      MurrtubeApi.setCookies('_murrtube_v3_session=keepme');
+      await CookieLoader.save('_murrtube_v3_session=keepme');
       final backup = jsonEncode({
         'app': 'murrmobile',
         'format_version': 1,
@@ -248,7 +248,7 @@ void main() {
       });
       await DataTransfer.importJson(backup);
       expect(MurrtubeApi.isAuthenticated, isTrue);
-      expect(await CookieLoader.load(), 'session_id=keepme');
+      expect(await CookieLoader.load(), '_murrtube_v3_session=keepme');
     });
   });
 
@@ -330,7 +330,7 @@ void main() {
         'app': 'murrmobile',
         'format_version': 1,
         'preferences': {'app_theme': 'light', 'video_quality': '480p'},
-        'cookies': 'session_id=imported',
+        'cookies': '_murrtube_v3_session=imported',
       });
       await tester.enterText(find.byType(TextField), backup);
       await tester.tap(find.widgetWithText(ElevatedButton, 'Import'));

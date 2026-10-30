@@ -67,7 +67,7 @@ void main() {
     testWidgets('main() loads cookies and runs the app', (tester) async {
       SharedPreferences.setMockInitialValues({'age_confirmed': true});
       stubHome(media: const []);
-      CookieLoader.set('session_id=abc');
+      CookieLoader.set('_murrtube_v3_session=abc; session_id=abc');
       await tester.runAsync(() async {
         app.main();
       });
@@ -145,7 +145,7 @@ void main() {
     });
 
     testWidgets('all tabs switch', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       stubHome();
       await pumpApp(tester, const HomePage(tab: 'for_you'));
       await settleAsync(tester);
@@ -185,7 +185,7 @@ void main() {
     testWidgets('logout on subscriptions tab resets to trending', (
       tester,
     ) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       stubHome();
       await pumpApp(
         tester,
@@ -483,7 +483,7 @@ void main() {
     testWidgets('blocked profile shows unblock and calls unblock endpoint', (
       tester,
     ) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/other',
         (req) => FakeResponse.inertia(
@@ -835,7 +835,7 @@ void main() {
 
   group('SettingsPage gaps', () {
     testWidgets('auth change reloads settings', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/settings',
         (req) => FakeResponse.inertia('Settings', {'user': userJson()}),
@@ -863,7 +863,7 @@ void main() {
     });
 
     testWidgets('authed user card renders avatar image', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/settings',
         (req) => FakeResponse.inertia('Settings', {

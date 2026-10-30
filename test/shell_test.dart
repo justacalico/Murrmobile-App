@@ -76,7 +76,7 @@ void main() {
   });
 
   testWidgets('authed bottom bar shows upload and activity', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubTabs();
     await pumpApp(tester, const ResponsiveShell(), size: const Size(500, 900));
     await settleAsync(tester);
@@ -91,7 +91,7 @@ void main() {
   });
 
   testWidgets('auth change resets tab and rebuilds keys', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubTabs();
     await pumpApp(
       tester,

@@ -275,7 +275,7 @@ void main() {
     });
 
     testWidgets('authed shows user card and log out', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/settings',
         (req) => FakeResponse.inertia('Settings', {
@@ -293,7 +293,7 @@ void main() {
     });
 
     testWidgets('settings api error renders logged-out view', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet('/settings', (req) => const FakeResponse(500, 'err'));
       await pumpApp(tester, const SettingsPage());
       await settleAsync(tester);
@@ -326,7 +326,7 @@ void main() {
     });
 
     testWidgets('server-provided quality options are used', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/settings',
         (req) => FakeResponse.inertia('Settings', {
@@ -430,7 +430,7 @@ void main() {
     });
 
     testWidgets('log out clears cookies and reloads', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/settings',
         (req) => FakeResponse.inertia('Settings', {'user': userJson()}),
@@ -463,7 +463,7 @@ void main() {
     });
 
     testWidgets('tapping user row pushes profile', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/settings',
         (req) =>
