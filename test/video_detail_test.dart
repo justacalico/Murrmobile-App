@@ -395,6 +395,20 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('share button shares video url', (tester) async {
+    stubVideo(videoProps());
+    await pumpDetail(tester);
+    await settleAsync(tester);
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.share));
+    await tester.pump();
+    expect(
+      env.share.sharedTexts,
+      contains('https://murrtube.net/v/ABC1'),
+    );
+    await unmount(tester);
+  });
+
   testWidgets('speed button cycles playback speed', (tester) async {
     stubVideo(
       videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/media.dart';
 import '../models/playlist.dart';
@@ -369,6 +370,21 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 if (!widget.fromRoot) const SizedBox(width: 12),
                 const Spacer(),
+                GestureDetector(
+                  onTap: () => Share.share('https://murrtube.net/${user.slug}'),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.share,
+                      size: 16,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

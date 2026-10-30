@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/media.dart';
 import '../models/playlist.dart';
@@ -139,6 +140,24 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             ),
                             child: Icon(
                               Icons.arrow_back_ios_new,
+                              size: 16,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => Share.share(
+                            'https://murrtube.net/${widget.userSlug}/p/${widget.playlistSlug}',
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.share,
                               size: 16,
                               color: colorScheme.onSurface,
                             ),

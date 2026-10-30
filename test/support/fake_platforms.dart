@@ -10,6 +10,7 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:wakelock_plus_platform_interface/wakelock_plus_platform_interface.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:share_plus_platform_interface/share_plus_platform_interface.dart';
 
 /// Fake video player that reports an initialized 1280x720 video and tracks
 /// play/pause/seek state so the real [VideoPlayerController] works normally.
@@ -278,4 +279,26 @@ class FakeCacheManager extends Fake implements BaseCacheManager {
     Map<String, String>? headers,
     bool withProgress = false,
   }) => Stream<FileResponse>.error(Exception('image unavailable'));
+}
+
+class FakeSharePlatform extends Fake
+    with MockPlatformInterfaceMixin
+    implements SharePlatform {
+  final List<String> sharedTexts = [];
+
+  @override
+  Future<ShareResult> share(
+    String text, {
+    String? subject,
+    Rect? sharePositionOrigin,
+  }) async {
+    sharedTexts.add(text);
+    return ShareResult.unavailable;
+  }
+}
+
+FakeSharePlatform installFakeShare() {
+  final fake = FakeSharePlatform();
+  SharePlatform.instance = fake;
+  return fake;
 }
