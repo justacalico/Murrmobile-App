@@ -642,7 +642,7 @@ void main() {
     });
 
     testWidgets('authed shell shows upload and activity tabs', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet(
         '/',
         (req) => FakeResponse.inertia('Home', {

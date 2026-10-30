@@ -438,7 +438,7 @@ void main() {
   });
 
   testWidgets('save sheet lists playlists and selects one', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubVideo();
     stubCsrf();
     env.server.onGet(
@@ -472,7 +472,7 @@ void main() {
   testWidgets('save sheet create flow makes playlist then adds item', (
     tester,
   ) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubVideo();
     stubCsrf();
     env.server.onGet(
@@ -511,7 +511,7 @@ void main() {
   });
 
   testWidgets('save sheet shows empty state', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubVideo();
     stubCsrf();
     env.server.onGet(
@@ -530,7 +530,7 @@ void main() {
   });
 
   testWidgets('save sheet load error shows empty state', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubVideo();
     stubCsrf();
     env.server.onGet(
@@ -1008,7 +1008,7 @@ void main() {
   testWidgets('create flow falls back to first playlist when name missing', (
     tester,
   ) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubVideo();
     stubCsrf();
     env.server.onGet(
@@ -1048,7 +1048,7 @@ void main() {
   });
 
   testWidgets('tag edit sheet opens and saves new tag list', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubVideo();
     stubCsrf();
     env.server.onPost(

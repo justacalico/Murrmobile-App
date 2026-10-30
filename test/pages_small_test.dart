@@ -232,7 +232,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byType(TextField),
-        'session_id=abc; age_check=1',
+        '_murrtube_v3_session=abc; session_id=abc; age_check=1',
       );
       // runAsync: CookieLoader.save does real file IO that fake-time
       // microtasks never complete.
@@ -250,7 +250,7 @@ void main() {
     });
 
     testWidgets('connect with empty field continues as guest', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       bool? result;
       await pumpApp(
         tester,
@@ -276,7 +276,7 @@ void main() {
     testWidgets('continue as guest pops true and clears cookies', (
       tester,
     ) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       bool? result;
       await pumpApp(
         tester,
@@ -314,7 +314,7 @@ void main() {
     });
 
     testWidgets('authed shows subscriptions tab', (tester) async {
-      MurrtubeApi.setCookies('session_id=abc');
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
       env.server.onGet('/', (req) => homePage());
       await pumpApp(tester, const HomePage());
       await settleAsync(tester);

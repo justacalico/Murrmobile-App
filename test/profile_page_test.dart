@@ -221,7 +221,7 @@ void main() {
   });
 
   testWidgets('authed user sees subscribe and block buttons', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubProfile(profileProps(profile: richProfileJson(slug: 'other')));
     env.server.onGet(
       '/other',
@@ -240,7 +240,7 @@ void main() {
   });
 
   testWidgets('subscribe calls follow endpoint', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     env.server.onGet(
       '/other',
       (req) => FakeResponse.inertia(
@@ -267,7 +267,7 @@ void main() {
   });
 
   testWidgets('subscribe failure reverts state', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     env.server.onGet(
       '/other',
       (req) => FakeResponse.inertia(
@@ -293,7 +293,7 @@ void main() {
   });
 
   testWidgets('unsubscribe calls unfollow endpoint', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     env.server.onGet(
       '/other',
       (req) => FakeResponse.inertia(
@@ -322,7 +322,7 @@ void main() {
   });
 
   testWidgets('block calls block endpoint and toggles label', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     env.server.onGet(
       '/other',
       (req) => FakeResponse.inertia(
@@ -349,7 +349,7 @@ void main() {
   });
 
   testWidgets('block failure reverts and shows snackbar', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     env.server.onGet(
       '/other',
       (req) => FakeResponse.inertia(
@@ -376,7 +376,7 @@ void main() {
   });
 
   testWidgets('self profile hides subscribe/block', (tester) async {
-    MurrtubeApi.setCookies('session_id=abc');
+    MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     env.server.onGet(
       '/me',
       (req) => FakeResponse.inertia(
