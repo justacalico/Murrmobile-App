@@ -5,7 +5,6 @@ import 'services/murrtube_api.dart';
 import 'utils/cookie_loader.dart';
 import 'providers/theme_provider.dart';
 import 'widgets/responsive_shell.dart';
-import 'pages/about_page.dart';
 import 'pages/age_confirmation_page.dart';
 
 void main() async {
@@ -36,10 +35,6 @@ class MurrtubeApp extends StatelessWidget {
             themeMode: themeProvider.themeMode,
             home: const AgeCheckWrapper(),
             routes: {
-              '/about/terms': (_) => const AboutPage(type: 'terms'),
-              '/about/privacy': (_) => const AboutPage(type: 'privacy'),
-              '/about/cookies': (_) => const AboutPage(type: 'cookies'),
-              '/about/whats-new': (_) => const AboutPage(type: 'whats-new'),
             },
           );
         },

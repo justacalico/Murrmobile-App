@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/main.dart';
-import 'package:murrmobile/pages/about_page.dart';
 import 'package:murrmobile/pages/age_confirmation_page.dart';
 import 'package:murrmobile/pages/cookie_setup_page.dart';
 import 'package:murrmobile/pages/home_page.dart';
@@ -107,98 +106,6 @@ void main() {
       await tester.tap(find.text('I am 18+'));
       await tester.pump();
       expect(confirmed, isTrue);
-    });
-  });
-
-  group('AboutPage', () {
-    testWidgets('terms loads and shows effective date', (tester) async {
-      env.server.onGet(
-        '/about/terms',
-        (req) => FakeResponse.inertia('Terms', {
-          'effective_date': '2026-01-01',
-          'content': 'blah',
-        }),
-      );
-      await pumpApp(tester, const AboutPage(type: 'terms'));
-      await settleAsync(tester);
-      await tester.pump();
-      expect(find.text('Terms of Service'), findsOneWidget);
-      expect(find.text('Effective 2026-01-01'), findsOneWidget);
-      expect(
-        find.textContaining('Content loaded from Murrtube'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('privacy loads', (tester) async {
-      env.server.onGet(
-        '/about/privacy',
-        (req) => FakeResponse.inertia('Privacy', {'effective_date': 'x'}),
-      );
-      await pumpApp(tester, const AboutPage(type: 'privacy'));
-      await settleAsync(tester);
-      await tester.pump();
-      expect(find.text('Privacy Policy'), findsOneWidget);
-    });
-
-    testWidgets('cookies loads', (tester) async {
-      env.server.onGet(
-        '/about/cookies',
-        (req) => FakeResponse.inertia('Cookies', {'effective_date': 'x'}),
-      );
-      await pumpApp(tester, const AboutPage(type: 'cookies'));
-      await settleAsync(tester);
-      await tester.pump();
-      expect(find.text('Cookie Policy'), findsOneWidget);
-    });
-
-    testWidgets('whats-new loads', (tester) async {
-      env.server.onGet(
-        '/about/whats-new',
-        (req) => FakeResponse.inertia('WhatsNew', {'effective_date': 'x'}),
-      );
-      await pumpApp(tester, const AboutPage(type: 'whats-new'));
-      await settleAsync(tester);
-      await tester.pump();
-      expect(find.text("What's New"), findsOneWidget);
-    });
-
-    testWidgets('unknown type shows About and empty props', (tester) async {
-      await pumpApp(tester, const AboutPage(type: 'bogus'));
-      await tester.pump();
-      expect(find.text('About'), findsOneWidget);
-      expect(find.textContaining('Effective'), findsNothing);
-    });
-
-    testWidgets('api error still renders page', (tester) async {
-      env.server.onGet('/about/terms', (req) => const FakeResponse(500, '{"error":"x"}'));
-      await pumpApp(tester, const AboutPage(type: 'terms'));
-      await settleAsync(tester);
-      await tester.pump();
-      expect(find.text('Terms of Service'), findsOneWidget);
-    });
-
-    testWidgets('back button pops', (tester) async {
-      env.server.onGet(
-        '/about/terms',
-        (req) => FakeResponse.inertia('Terms', {}),
-      );
-      await pumpApp(
-        tester,
-        Builder(
-          builder: (context) => TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AboutPage(type: 'terms')),
-            ),
-            child: const Text('open'),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
-      await tester.pumpAndSettle();
-      expect(find.byType(AboutPage), findsNothing);
     });
   });
 

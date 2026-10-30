@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/main.dart' as app;
-import 'package:murrmobile/pages/about_page.dart';
 import 'package:murrmobile/pages/cookie_setup_page.dart';
 import 'package:murrmobile/pages/home_page.dart';
 import 'package:murrmobile/pages/login_page.dart';
@@ -18,7 +17,6 @@ import 'package:murrmobile/pages/search_page.dart';
 import 'package:murrmobile/pages/settings_page.dart';
 import 'package:murrmobile/services/murrtube_api.dart';
 import 'package:murrmobile/utils/cookie_loader.dart';
-import 'package:murrmobile/widgets/responsive_shell.dart';
 
 import 'support/fake_http.dart';
 import 'support/fixtures.dart';
@@ -78,40 +76,6 @@ void main() {
       await tester.runAsync(() => CookieLoader.clear());
     });
 
-    testWidgets('named about routes resolve', (tester) async {
-      SharedPreferences.setMockInitialValues({'age_confirmed': true});
-      stubHome(media: const []);
-      for (final t in ['terms', 'privacy', 'cookies', 'whats-new']) {
-        env.server.onGet(
-          '/about/$t',
-          (req) => FakeResponse.inertia('About', {
-            'title': t,
-            'body': 'body',
-            'effective_date': '2026-01-01',
-          }),
-        );
-      }
-      await tester.pumpWidget(const app.MurrtubeApp());
-      await tester.pump();
-      await settleAsync(tester);
-      expect(find.byType(ResponsiveShell), findsOneWidget);
-      final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
-      for (final route in [
-        '/about/terms',
-        '/about/privacy',
-        '/about/cookies',
-        '/about/whats-new',
-      ]) {
-        nav.pushNamed(route);
-        await tester.pump();
-        await settleAsync(tester);
-        await tester.pump();
-        expect(find.byType(AboutPage), findsOneWidget);
-        nav.pop();
-        await tester.pump();
-        await tester.pump();
-      }
-    });
   });
 
   group('HomePage gaps', () {
