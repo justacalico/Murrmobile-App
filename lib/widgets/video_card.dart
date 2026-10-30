@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/media.dart';
 
-class VideoCard extends StatelessWidget {
+class VideoCard extends StatefulWidget {
   final Media media;
   final VoidCallback onTap;
   final String? heroTag;
@@ -16,6 +16,9 @@ class VideoCard extends StatelessWidget {
     required this.onTap,
     this.heroTag,
   });
+
+  @override
+  State<VideoCard> createState() => _VideoCardState();
 
   static const double thumbnailAspectRatio = 16 / 10;
 
@@ -50,17 +53,25 @@ class VideoCard extends StatelessWidget {
     return cellWidth / height;
   }
 
+}
+
+class _VideoCardState extends State<VideoCard> {
+  bool _hovering = false;
+
   @override
   Widget build(BuildContext context) {
+    final media = widget.media;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final mutedColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
       child: GestureDetector(
         onTap: () {
           HapticFeedback.selectionClick();
-          onTap();
+          widget.onTap();
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -77,14 +88,16 @@ class VideoCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AspectRatio(
-                aspectRatio: thumbnailAspectRatio,
+                aspectRatio: VideoCard.thumbnailAspectRatio,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     Hero(
-                      tag: heroTag ?? 'video-thumb-${media.shortCode}',
+                      tag: widget.heroTag ?? 'video-thumb-${media.shortCode}',
                       child: CachedNetworkImage(
-                        imageUrl: media.thumbnailUrl,
+                        imageUrl: _hovering && media.previewUrl != null
+                            ? media.previewUrl!
+                            : media.thumbnailUrl,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => Container(
                           color: colorScheme.surfaceContainerHighest,
@@ -108,6 +121,29 @@ class VideoCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (media.durationLabel.isNotEmpty)
+                      Positioned(
+                        right: 6,
+                        bottom: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            media.durationLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -207,6 +243,19 @@ class VideoCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            _timeAgo(media.publishedAt),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: mutedColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -217,6 +266,15 @@ class VideoCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _timeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inDays >= 365) return '${diff.inDays ~/ 365}y ago';
+    if (diff.inDays >= 30) return '${diff.inDays ~/ 30}mo ago';
+    if (diff.inDays >= 1) return '${diff.inDays}d ago';
+    if (diff.inHours >= 1) return '${diff.inHours}h ago';
+    return '${diff.inMinutes.clamp(1, 59)}m ago';
   }
 
   static String _formatCount(int count) {
