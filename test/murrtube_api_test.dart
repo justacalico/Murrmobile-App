@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +37,22 @@ void main() {
       matchQuery: (uri) => uri.queryParameters.containsKey('tab'),
     );
   }
+
+  group('request timeout', () {
+    test('a stalled request throws TimeoutException', () async {
+      final previous = MurrtubeApi.requestTimeout;
+      MurrtubeApi.requestTimeout = const Duration(milliseconds: 50);
+      addTearDown(() => MurrtubeApi.requestTimeout = previous);
+      server.onGet('/', (req) async {
+        await Future<void>.delayed(const Duration(seconds: 30));
+        return homeJson();
+      });
+      await expectLater(
+        MurrtubeApi.getHome(),
+        throwsA(isA<TimeoutException>()),
+      );
+    });
+  });
 
   group('cookie state', () {
     test('hasCookies and isAuthenticated reflect jar contents', () {

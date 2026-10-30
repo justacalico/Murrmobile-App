@@ -91,6 +91,26 @@ void main() {
     expect(find.text('Video not found'), findsOneWidget);
   });
 
+  testWidgets('retry reloads after error', (tester) async {
+    var attempts = 0;
+    env.server.onGet('/v/ABC1', (req) {
+      attempts++;
+      return attempts == 1
+          ? const FakeResponse(500, '{"error":"x"}')
+          : FakeResponse.inertia('Video', videoProps());
+    });
+    await pumpDetail(tester);
+    await settleAsync(tester);
+    await tester.pump();
+    expect(find.text('Video not found'), findsOneWidget);
+
+    await tester.tap(find.text('Retry'));
+    await settleAsync(tester);
+    await tester.pump();
+    expect(find.text('Video not found'), findsNothing);
+    await unmount(tester);
+  });
+
   testWidgets('description renders when present', (tester) async {
     stubVideo(
       videoProps(
@@ -148,7 +168,7 @@ void main() {
   testWidgets('post comment failure shows snackbar', (tester) async {
     stubVideo();
     stubCsrf();
-    env.server.onPost('/comments', (req) => const FakeResponse(500, 'err'));
+    env.server.onPost('/comments', (req) => const FakeResponse(500, '{"error":"x"}'));
     await pumpDetail(tester);
     await tester.tap(find.text('13 Comments'));
     await tester.pump();
@@ -310,7 +330,7 @@ void main() {
   testWidgets('like failure reverts and shows snackbar', (tester) async {
     stubVideo();
     stubCsrf();
-    env.server.onPost('/likes', (req) => const FakeResponse(500, 'err'));
+    env.server.onPost('/likes', (req) => const FakeResponse(500, '{"error":"x"}'));
     await pumpDetail(tester);
     await tester.tap(find.text('Likes'));
     await tester.pump();
@@ -560,7 +580,7 @@ void main() {
     stubCsrf();
     env.server.onGet(
       '/playlists/mine',
-      (req) => const FakeResponse(500, 'err'),
+      (req) => const FakeResponse(500, '{"error":"x"}'),
     );
     await pumpDetail(tester);
     await tester.tap(find.text('Save'));
@@ -1015,7 +1035,7 @@ void main() {
   testWidgets('reply failure shows snackbar', (tester) async {
     stubVideo();
     stubCsrf();
-    env.server.onPost('/comments', (req) => const FakeResponse(500, 'err'));
+    env.server.onPost('/comments', (req) => const FakeResponse(500, '{"error":"x"}'));
     await pumpDetail(tester);
     await tester.tap(find.text('13 Comments'));
     await tester.pump();

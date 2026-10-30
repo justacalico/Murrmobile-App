@@ -3,6 +3,7 @@ import '../models/media.dart';
 import '../models/announcement.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
+import '../widgets/error_state.dart';
 import '../widgets/video_card.dart';
 import '../widgets/announcement_banner.dart';
 import 'video_detail_page.dart';
@@ -19,6 +20,8 @@ class _HomePageState extends State<HomePage> {
   List<Media> _media = [];
   List<Announcement> _announcements = [];
   bool _loading = false;
+  bool _failed = false;
+  bool _loadMoreFailed = false;
   bool _hasMore = true;
   int _currentPage = 1;
   late String _currentTab;
@@ -47,7 +50,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _failed = false;
+      _loadMoreFailed = false;
+    });
     try {
       final result = await MurrtubeApi.getHome(tab: _currentTab, page: _currentPage);
       setState(() {
@@ -61,6 +68,7 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       debugPrint('HomePage load error: $e');
+      setState(() => _failed = true);
     } finally {
       setState(() => _loading = false);
     }
@@ -79,8 +87,26 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadMore() async {
     if (_loading || !_hasMore) return;
-    _currentPage++;
-    await _load();
+    setState(() {
+      _loading = true;
+      _loadMoreFailed = false;
+    });
+    try {
+      final result = await MurrtubeApi.getHome(
+        tab: _currentTab,
+        page: _currentPage + 1,
+      );
+      setState(() {
+        _currentPage++;
+        _media.addAll(result.media);
+        _hasMore = result.pagination.next != null;
+      });
+    } catch (e) {
+      debugPrint('HomePage load more error: $e');
+      setState(() => _loadMoreFailed = true);
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
   @override
@@ -159,6 +185,14 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               )
+            else if (!_loading && _media.isEmpty && _failed)
+              SliverFillRemaining(
+                child: ErrorState(
+                  icon: Icons.cloud_off_outlined,
+                  message: 'Couldn\'t load videos',
+                  onRetry: _load,
+                ),
+              )
             else if (!_loading && _media.isEmpty)
               SliverFillRemaining(
                 child: Center(
@@ -189,6 +223,15 @@ class _HomePageState extends State<HomePage> {
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           if (index >= _media.length) {
+                            if (_loadMoreFailed) {
+                              return Center(
+                                child: TextButton.icon(
+                                  onPressed: _loadMore,
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Retry'),
+                                ),
+                              );
+                            }
                             if (_hasMore) {
                               WidgetsBinding.instance.addPostFrameCallback((_) => _loadMore());
                               return Center(

@@ -11,6 +11,7 @@ import '../services/murrtube_api.dart';
 import '../utils/app_preferences.dart';
 import '../utils/fullscreen_state.dart';
 import '../utils/page_transitions.dart';
+import '../widgets/error_state.dart';
 import '../widgets/video_card.dart';
 import '../widgets/linkify_text.dart';
 import '../widgets/tag_edit_sheet.dart';
@@ -99,6 +100,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   }
 
   Future<void> _load() async {
+    setState(() => _loading = true);
     try {
       final result = await MurrtubeApi.getVideo(widget.shortCode);
       setState(() {
@@ -517,11 +519,10 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     final medium = _medium;
     if (medium == null) {
       return Scaffold(
-        body: Center(
-          child: Text(
-            'Video not found',
-            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
-          ),
+        body: ErrorState(
+          icon: Icons.videocam_off_outlined,
+          message: 'Video not found',
+          onRetry: _load,
         ),
       );
     }

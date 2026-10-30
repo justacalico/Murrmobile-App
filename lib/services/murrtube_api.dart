@@ -31,8 +31,22 @@ class InertiaPage {
   }
 }
 
+class _TimeoutClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final client = http.Client();
+    try {
+      return await client.send(request).timeout(MurrtubeApi.requestTimeout);
+    } finally {
+      client.close();
+    }
+  }
+}
+
 class MurrtubeApi {
   static const String baseUrl = 'https://murrtube.net';
+  static Duration requestTimeout = const Duration(seconds: 15);
+  static final http.Client _client = _TimeoutClient();
   static String? _cookieString;
 
   static String? get cookies => _cookieString;
@@ -118,7 +132,7 @@ class MurrtubeApi {
     debugPrint('cookies set? ${hasCookies}');
 
     // Try with cached version first
-    var response = await http.get(
+    var response = await _client.get(
       uri,
       headers: _headers(inertiaVersion: _inertiaVersion, homeTab: homeTab),
     );
@@ -136,7 +150,7 @@ class MurrtubeApi {
       // If body is empty (common for 409), fetch root page normally
       if (body.isEmpty) {
         debugPrint('Body empty, fetching root page without Inertia headers...');
-        final rootResp = await http.get(
+        final rootResp = await _client.get(
           Uri.parse(baseUrl),
           headers: {
             'User-Agent':
@@ -164,7 +178,7 @@ class MurrtubeApi {
         _inertiaVersion = '1';
       }
       debugPrint('Extracted version: $_inertiaVersion');
-      response = await http.get(
+      response = await _client.get(
         uri,
         headers: _headers(inertiaVersion: _inertiaVersion, homeTab: homeTab),
       );
@@ -226,7 +240,7 @@ class MurrtubeApi {
       if (_cookieString != null) 'Cookie': _cookieString!,
     });
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await _client.send(request);
     final response = await http.Response.fromStream(streamedResponse);
     _updateCookiesFromResponse(response);
     debugPrint('Age check POST status: ${response.statusCode}');
@@ -406,7 +420,7 @@ class MurrtubeApi {
     List<({String name, String category, int count})> tags,
   })> searchSuggest(String q) async {
     final query = Uri.encodeComponent(q);
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/search/suggest?q=$query'),
       headers: {
         'User-Agent':
@@ -556,7 +570,7 @@ class MurrtubeApi {
 
   static Future<void> blockUser(String slug) async {
     final token = await _fetchCsrfToken();
-    final response = await http.put(
+    final response = await _client.put(
       Uri.parse('$baseUrl/users/$slug/block'),
       headers: {
         'User-Agent':
@@ -578,7 +592,7 @@ class MurrtubeApi {
 
   static Future<void> unblockUser(String slug) async {
     final token = await _fetchCsrfToken();
-    final response = await http.put(
+    final response = await _client.put(
       Uri.parse('$baseUrl/users/$slug/unblock'),
       headers: {
         'User-Agent':
@@ -600,7 +614,7 @@ class MurrtubeApi {
 
   static Future<void> subscribeToUser(String slug) async {
     final token = await _fetchCsrfToken();
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/users/$slug/follow'),
       headers: {
         'User-Agent':
@@ -621,7 +635,7 @@ class MurrtubeApi {
 
   static Future<void> unsubscribeFromUser(String slug) async {
     final token = await _fetchCsrfToken();
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/users/$slug/unfollow'),
       headers: {
         'User-Agent':
@@ -676,7 +690,7 @@ class MurrtubeApi {
   // Like / Unlike
   static Future<String> _fetchCsrfToken() async {
     // The XSRF-TOKEN cookie may be stale. Fetch a fresh token from HTML.
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse(baseUrl),
       headers: {
         'User-Agent':
@@ -700,7 +714,7 @@ class MurrtubeApi {
 
   static Future<void> likeVideo(String mediumId) async {
     final token = await _fetchCsrfToken();
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/likes'),
       headers: {
         'User-Agent':
@@ -725,7 +739,7 @@ class MurrtubeApi {
 
   static Future<void> postComment({required String mediumId, required String body}) async {
     final token = await _fetchCsrfToken();
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/comments'),
       headers: {
         'User-Agent':
@@ -752,7 +766,7 @@ class MurrtubeApi {
 
   static Future<void> deleteComment(String commentId) async {
     final token = await _fetchCsrfToken();
-    final response = await http.delete(
+    final response = await _client.delete(
       Uri.parse('$baseUrl/comments/$commentId'),
       headers: {
         'User-Agent':
@@ -774,7 +788,7 @@ class MurrtubeApi {
 
   static Future<void> replyToComment({required String mediumId, required String parentId, required String body}) async {
     final token = await _fetchCsrfToken();
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/comments'),
       headers: {
         'User-Agent':
@@ -802,7 +816,7 @@ class MurrtubeApi {
 
   static Future<void> unlikeVideo(String mediumId) async {
     final token = await _fetchCsrfToken();
-    final response = await http.delete(
+    final response = await _client.delete(
       Uri.parse('$baseUrl/likes/$mediumId'),
       headers: {
         'User-Agent':
@@ -826,7 +840,7 @@ class MurrtubeApi {
   // Playlists
   static Future<List<Playlist>> getMyPlaylists() async {
     final token = await _fetchCsrfToken();
-    final response = await http.get(
+    final response = await _client.get(
       Uri.parse('$baseUrl/playlists/mine'),
       headers: {
         'User-Agent':
@@ -873,7 +887,7 @@ class MurrtubeApi {
       'Cookie': _cookieString!,
     });
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await _client.send(request);
     final response = await http.Response.fromStream(streamedResponse);
     _updateCookiesFromResponse(response);
     final body = utf8.decode(response.bodyBytes);
@@ -946,7 +960,7 @@ class MurrtubeApi {
       'Cookie': _cookieString!,
     });
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await _client.send(request);
     final response = await http.Response.fromStream(streamedResponse);
     _updateCookiesFromResponse(response);
     final body = utf8.decode(response.bodyBytes);
@@ -963,7 +977,7 @@ class MurrtubeApi {
     required List<String> removals,
   }) async {
     final token = await _fetchCsrfToken();
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$baseUrl/tag_edits'),
       headers: {
         'User-Agent':

@@ -5,6 +5,7 @@ import '../models/playlist.dart';
 import '../models/user.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
+import '../widgets/error_state.dart';
 import '../widgets/video_card.dart';
 import 'video_detail_page.dart';
 import 'profile_page.dart';
@@ -108,18 +109,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final playlist = _playlist;
     if (playlist == null) {
       return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.playlist_remove, size: 48, color: mutedColor),
-              const SizedBox(height: 12),
-              Text(
-                'Playlist not found',
-                style: TextStyle(color: mutedColor, fontSize: 15),
-              ),
-            ],
-          ),
+        body: ErrorState(
+          icon: Icons.playlist_remove,
+          message: 'Playlist not found',
+          onRetry: _load,
         ),
       );
     }

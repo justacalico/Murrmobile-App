@@ -6,6 +6,7 @@ import '../models/playlist.dart';
 import '../models/user.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
+import '../widgets/error_state.dart';
 import '../widgets/linkify_text.dart';
 import '../widgets/video_card.dart';
 import 'video_detail_page.dart';
@@ -275,18 +276,10 @@ class _ProfilePageState extends State<ProfilePage>
     final user = _user;
     if (user == null) {
       return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.person_off, size: 48, color: mutedColor),
-              const SizedBox(height: 12),
-              Text(
-                'User not found',
-                style: TextStyle(color: mutedColor, fontSize: 15),
-              ),
-            ],
-          ),
+        body: ErrorState(
+          icon: Icons.person_off,
+          message: 'User not found',
+          onRetry: _load,
         ),
       );
     }
