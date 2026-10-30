@@ -395,6 +395,21 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('speed button cycles playback speed', (tester) async {
+    stubVideo(
+      videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),
+    );
+    await pumpDetail(tester);
+    await settleAsync(tester);
+    await tester.pump();
+    expect(find.text('1.0x'), findsOneWidget);
+    await tester.tap(find.text('1.0x'));
+    await tester.pump();
+    expect(find.text('1.25x'), findsOneWidget);
+    expect(env.videoPlayer.speeds.values.last, 1.25);
+    await unmount(tester);
+  });
+
   testWidgets('play overlay pauses and resumes', (tester) async {
     stubVideo(
       videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),

@@ -46,6 +46,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   bool _viewerCanComment = false;
   int _likesCount = 0;
   bool _isMuted = false;
+  double _playbackSpeed = 1.0;
   bool _isFullscreen = false;
   bool _showFullscreenUI = true;
   Timer? _fullscreenUITimer;
@@ -297,6 +298,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   void _initPlayer(String url) {
     _controller = VideoPlayerController.networkUrl(Uri.parse(url))
       ..setVolume(_isMuted ? 0.0 : 1.0)
+      ..setPlaybackSpeed(_playbackSpeed)
       ..setLooping(true)
       ..addListener(() {
         if (mounted) setState(() {});
@@ -314,6 +316,38 @@ class _VideoDetailPageState extends State<VideoDetailPage>
           setState(() {});
         }
       });
+  }
+
+  void _cycleSpeed() {
+    const speeds = [1.0, 1.25, 1.5, 2.0];
+    final next = speeds[(speeds.indexOf(_playbackSpeed) + 1) % speeds.length];
+    setState(() => _playbackSpeed = next);
+    _controller?.setPlaybackSpeed(next);
+  }
+
+  Widget _speedButton() {
+    return GestureDetector(
+      onTap: _cycleSpeed,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: SizedBox(
+          width: 20,
+          child: Text(
+            '${_playbackSpeed}x',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _toggleMute() async {
@@ -603,6 +637,12 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                             ),
                           ),
                         ),
+                      ),
+                      // Speed button
+                      Positioned(
+                        top: 12,
+                        right: 108,
+                        child: _speedButton(),
                       ),
                       // Mute button
                       Positioned(
@@ -1206,6 +1246,12 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                           ),
                         ),
                       ),
+                    ),
+                    // Speed button
+                    Positioned(
+                      top: 12,
+                      right: 100,
+                      child: _speedButton(),
                     ),
                     // Mute button
                     Positioned(

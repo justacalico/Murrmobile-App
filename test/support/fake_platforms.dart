@@ -119,8 +119,12 @@ class FakeVideoPlayerPlatform extends Fake
   Future<Duration> getPosition(int playerId) async =>
       positions[playerId] ?? Duration.zero;
 
+  final Map<int, double> speeds = {};
+
   @override
-  Future<void> setPlaybackSpeed(int playerId, double speed) async {}
+  Future<void> setPlaybackSpeed(int playerId, double speed) async {
+    speeds[playerId] = speed;
+  }
 
   @override
   Future<void> setMixWithOthers(bool mixWithOthers) async {}
