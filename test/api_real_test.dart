@@ -59,19 +59,7 @@ void main() {
       expect(props['visibilities'], isA<List>());
     });
 
-    test('getTerms returns effective_date', () async {
-      final props = await MurrtubeApi.getTerms();
-      expect(props['effective_date'], isNotNull);
-    });
 
-    test('getPrivacy returns effective_date', () async {
-      final props = await MurrtubeApi.getPrivacy();
-      expect(props['effective_date'], isNotNull);
-    });
 
-    test('getCookies returns effective_date', () async {
-      final props = await MurrtubeApi.getCookies();
-      expect(props['effective_date'], isNotNull);
-    });
   }, skip: !_runLive);
 }

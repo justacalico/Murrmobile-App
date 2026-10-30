@@ -516,7 +516,7 @@ void main() {
       );
     });
 
-    test('getSettings/getUpload/about pages return props', () async {
+    test('getSettings/getUpload return props', () async {
       server.onGet(
         '/settings',
         (req) => FakeResponse.inertia('Settings', {'user': userJson()}),
@@ -527,29 +527,9 @@ void main() {
           'visibilities': ['public'],
         }),
       );
-      server.onGet(
-        '/about/terms',
-        (req) => FakeResponse.inertia('T', {'effective_date': 'x'}),
-      );
-      server.onGet(
-        '/about/privacy',
-        (req) => FakeResponse.inertia('P', {'effective_date': 'y'}),
-      );
-      server.onGet(
-        '/about/cookies',
-        (req) => FakeResponse.inertia('C', {'effective_date': 'z'}),
-      );
-      server.onGet(
-        '/about/whats-new',
-        (req) => FakeResponse.inertia('W', {'effective_date': 'w'}),
-      );
 
       expect((await MurrtubeApi.getSettings())['user'], isNotNull);
       expect((await MurrtubeApi.getUpload())['visibilities'], isNotEmpty);
-      expect((await MurrtubeApi.getTerms())['effective_date'], 'x');
-      expect((await MurrtubeApi.getPrivacy())['effective_date'], 'y');
-      expect((await MurrtubeApi.getCookies())['effective_date'], 'z');
-      expect((await MurrtubeApi.getWhatsNew())['effective_date'], 'w');
     });
 
     test('getPlaylist parses playlist, items, user, ownership', () async {

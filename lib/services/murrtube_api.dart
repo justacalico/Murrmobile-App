@@ -666,27 +666,6 @@ class MurrtubeApi {
     return inertia.props;
   }
 
-  // About pages
-  static Future<Map<String, dynamic>> getTerms() async {
-    final inertia = await _get('/about/terms');
-    return inertia.props;
-  }
-
-  static Future<Map<String, dynamic>> getPrivacy() async {
-    final inertia = await _get('/about/privacy');
-    return inertia.props;
-  }
-
-  static Future<Map<String, dynamic>> getCookies() async {
-    final inertia = await _get('/about/cookies');
-    return inertia.props;
-  }
-
-  static Future<Map<String, dynamic>> getWhatsNew() async {
-    final inertia = await _get('/about/whats-new');
-    return inertia.props;
-  }
-
   // Like / Unlike
   static Future<String> _fetchCsrfToken() async {
     // The XSRF-TOKEN cookie may be stale. Fetch a fresh token from HTML.
