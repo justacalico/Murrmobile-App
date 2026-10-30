@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class LinkifyText extends StatelessWidget {
+class LinkifyText extends StatefulWidget {
   final String text;
   final TextStyle? style;
   final TextStyle? linkStyle;
@@ -22,13 +22,33 @@ class LinkifyText extends StatelessWidget {
   );
 
   @override
+  State<LinkifyText> createState() => _LinkifyTextState();
+}
+
+class _LinkifyTextState extends State<LinkifyText> {
+  final _recognizers = <TapGestureRecognizer>[];
+
+  @override
+  void dispose() {
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final defaultStyle = style ??
+    for (final r in _recognizers) {
+      r.dispose();
+    }
+    _recognizers.clear();
+
+    final defaultStyle = widget.style ??
         TextStyle(
           fontSize: 14,
           color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
         );
-    final defaultLinkStyle = linkStyle ??
+    final defaultLinkStyle = widget.linkStyle ??
         defaultStyle.copyWith(
           color: Theme.of(context).colorScheme.primary,
           decoration: TextDecoration.underline,
@@ -37,31 +57,33 @@ class LinkifyText extends StatelessWidget {
     final spans = <TextSpan>[];
     var lastIndex = 0;
 
-    for (final match in _urlRegex.allMatches(text)) {
+    for (final match in LinkifyText._urlRegex.allMatches(widget.text)) {
       if (match.start > lastIndex) {
-        spans.add(TextSpan(text: text.substring(lastIndex, match.start)));
+        spans.add(TextSpan(text: widget.text.substring(lastIndex, match.start)));
       }
       final url = match.group(0)!;
+      final recognizer = TapGestureRecognizer()
+        ..onTap = () async {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        };
+      _recognizers.add(recognizer);
       spans.add(TextSpan(
         text: url,
         style: defaultLinkStyle,
-        recognizer: TapGestureRecognizer()
-          ..onTap = () async {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            }
-          },
+        recognizer: recognizer,
       ));
       lastIndex = match.end;
     }
 
-    if (lastIndex < text.length) {
-      spans.add(TextSpan(text: text.substring(lastIndex)));
+    if (lastIndex < widget.text.length) {
+      spans.add(TextSpan(text: widget.text.substring(lastIndex)));
     }
 
     return RichText(
-      textAlign: textAlign ?? TextAlign.start,
+      textAlign: widget.textAlign ?? TextAlign.start,
       text: TextSpan(style: defaultStyle, children: spans),
     );
   }
