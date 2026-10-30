@@ -84,7 +84,7 @@ void main() {
     await pumpApp(tester, const ProfilePage(slug: 'test-user'));
     await settleAsync(tester);
     await tester.pump();
-    expect(find.text('Hello world'), findsOneWidget);
+    expect(find.text('Hello world', findRichText: true), findsOneWidget);
     expect(find.text('GitLab'), findsOneWidget);
     expect(find.text('X'), findsOneWidget);
     expect(find.text('FurAffinity'), findsOneWidget);
@@ -96,6 +96,28 @@ void main() {
     await tester.tap(find.text('GitLab'));
     await tester.pump();
     expect(env.urlLauncher.launchedUrls, contains('https://gitlab.com/x'));
+  });
+
+  testWidgets('bio urls launch when tapped', (tester) async {
+    stubProfile(
+      profileProps(
+        profile: richProfileJson(bio: 'see https://example.com/me for more'),
+      ),
+    );
+    await pumpApp(tester, const ProfilePage(slug: 'test-user'));
+    await settleAsync(tester);
+    await tester.pump();
+    final rich = tester.widgetList<RichText>(find.byType(RichText)).firstWhere(
+      (r) => r.text.toPlainText().contains('see https://example.com/me'),
+    );
+    final link = (rich.text as TextSpan)
+        .children!
+        .whereType<TextSpan>()
+        .firstWhere((s) => s.recognizer != null);
+    (link.recognizer as dynamic).onTap();
+    await tester.pump();
+    await settleAsync(tester);
+    expect(env.urlLauncher.launchedUrls, contains('https://example.com/me'));
   });
 
   testWidgets('telegram link row renders', (tester) async {
