@@ -584,18 +584,22 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                       Positioned(
                         top: 12,
                         left: 12,
-                        child: GestureDetector(
-                          onTap: () => _toggleFullscreen(),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_back_ios_new,
-                              size: 18,
-                              color: Colors.white,
+                        child: Semantics(
+                          button: true,
+                          label: 'Back',
+                          child: GestureDetector(
+                            onTap: () => _toggleFullscreen(),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_ios_new,
+                                size: 18,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -604,18 +608,22 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                       Positioned(
                         top: 12,
                         right: 64,
-                        child: GestureDetector(
-                          onTap: _toggleMute,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              _isMuted ? Icons.volume_off : Icons.volume_up,
-                              size: 20,
-                              color: Colors.white,
+                        child: Semantics(
+                          button: true,
+                          label: _isMuted ? 'Unmute' : 'Mute',
+                          child: GestureDetector(
+                            onTap: _toggleMute,
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                _isMuted ? Icons.volume_off : Icons.volume_up,
+                                size: 20,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -624,18 +632,22 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                       Positioned(
                         top: 12,
                         right: 12,
-                        child: GestureDetector(
-                          onTap: _toggleFullscreen,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.fullscreen_exit,
-                              size: 20,
-                              color: Colors.white,
+                        child: Semantics(
+                          button: true,
+                          label: 'Exit fullscreen',
+                          child: GestureDetector(
+                            onTap: _toggleFullscreen,
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.fullscreen_exit,
+                                size: 20,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
