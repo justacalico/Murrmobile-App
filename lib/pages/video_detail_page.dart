@@ -902,6 +902,24 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                   ),
                                 ),
                               ),
+                            if (medium.hlsUrl == null)
+                              const Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.videocam_off_outlined,
+                                      color: Colors.white54,
+                                      size: 40,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Video unavailable',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  ],
+                                ),
+                              ),
                     // Double tap zones
                     // coverage:ignore-start
                     // The play/pause overlay above the zones wins every hit,
