@@ -46,6 +46,8 @@ void main() {
       expect(find.text('3.9K'), findsOneWidget);
       expect(find.text('40'), findsOneWidget);
       expect(find.byIcon(Icons.person), findsOneWidget);
+      expect(find.text('5:52'), findsOneWidget);
+      expect(find.textContaining('ago'), findsOneWidget);
     });
 
     testWidgets('formats millions and small counts', (tester) async {
