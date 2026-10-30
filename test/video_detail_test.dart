@@ -335,6 +335,16 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('missing hls url shows unavailable message', (tester) async {
+    stubVideo(videoProps(medium: mediaJson(hlsUrl: null)));
+    await pumpDetail(tester);
+    await settleAsync(tester);
+    await tester.pump();
+    expect(find.byType(VideoPlayer), findsNothing);
+    expect(find.text('Video unavailable'), findsOneWidget);
+    await unmount(tester);
+  });
+
   testWidgets('backgrounding the app pauses playback', (tester) async {
     stubVideo(
       videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),
