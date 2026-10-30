@@ -92,6 +92,10 @@ void main() {
     expect(find.text('Ko-fi'), findsOneWidget);
     expect(find.text('Bluesky'), findsOneWidget);
     expect(find.text('OnlyFans'), findsOneWidget);
+
+    await tester.tap(find.text('GitLab'));
+    await tester.pump();
+    expect(env.urlLauncher.launchedUrls, contains('https://gitlab.com/x'));
   });
 
   testWidgets('telegram link row renders', (tester) async {
@@ -106,6 +110,7 @@ void main() {
     expect(find.text('Telegram'), findsOneWidget);
     await tester.tap(find.text('Telegram'));
     await tester.pump();
+    expect(env.urlLauncher.launchedUrls, contains('https://t.me/x'));
   });
 
   testWidgets('tab badges show counts', (tester) async {
