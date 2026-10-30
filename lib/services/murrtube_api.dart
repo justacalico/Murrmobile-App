@@ -10,6 +10,7 @@ import '../models/notification.dart';
 import '../models/user.dart';
 import '../models/playlist.dart';
 import '../models/tag.dart';
+import '../utils/logger.dart';
 
 class InertiaPage {
   final String component;
@@ -87,7 +88,7 @@ class MurrtubeApi {
       if (i != -1) jar[c.substring(0, i)] = c.substring(i + 1);
     }
     _cookieString = jar.entries.map((e) => '${e.key}=${e.value}').join('; ');
-    debugPrint('Updated cookies from response. Now cookies set? ${hasCookies}');
+    netLog('Updated cookies from response. Now cookies set? ${hasCookies}');
   }
 
   static Map<String, String> _headers({String? inertiaVersion, String? homeTab}) {
@@ -102,12 +103,12 @@ class MurrtubeApi {
       'Referer': baseUrl,
       if (_cookieString != null) 'Cookie': _cookieString!,
     };
-    debugPrint('--- headers ---');
+    netLog('--- headers ---');
     h.forEach((k, v) {
       if (k == 'Cookie') {
-        debugPrint('Cookie: ${_maskCookie(v)}');
+        netLog('Cookie: ${_maskCookie(v)}');
       } else {
-        debugPrint('$k: $v');
+        netLog('$k: $v');
       }
     });
     return h;
@@ -127,9 +128,9 @@ class MurrtubeApi {
 
   static Future<InertiaPage> _get(String path, {String? homeTab}) async {
     final uri = Uri.parse('$baseUrl$path');
-    debugPrint('');
-    debugPrint('=== MurrtubeApi._get $path ===');
-    debugPrint('cookies set? ${hasCookies}');
+    netLog('');
+    netLog('=== MurrtubeApi._get $path ===');
+    netLog('cookies set? ${hasCookies}');
 
     // Try with cached version first
     var response = await _client.get(
@@ -139,17 +140,17 @@ class MurrtubeApi {
 
     var body = utf8.decode(response.bodyBytes);
     _updateCookiesFromResponse(response);
-    debugPrint('First response status: ${response.statusCode}');
-    debugPrint('First response body starts with: ${body.isNotEmpty ? body.substring(0, body.length.clamp(0, 60)) : "(empty)"}');
+    netLog('First response status: ${response.statusCode}');
+    netLog('First response body starts with: ${body.isNotEmpty ? body.substring(0, body.length.clamp(0, 60)) : "(empty)"}');
 
     // 409 = Inertia version mismatch. Body may be empty, so fetch root page
     // without Inertia headers to get HTML and extract the version.
     if (response.statusCode == 409 || !body.startsWith('{')) {
-      debugPrint('Need to extract Inertia version and retry...');
+      netLog('Need to extract Inertia version and retry...');
 
       // If body is empty (common for 409), fetch root page normally
       if (body.isEmpty) {
-        debugPrint('Body empty, fetching root page without Inertia headers...');
+        netLog('Body empty, fetching root page without Inertia headers...');
         final rootResp = await _client.get(
           Uri.parse(baseUrl),
           headers: {
@@ -163,8 +164,8 @@ class MurrtubeApi {
         );
         _updateCookiesFromResponse(rootResp);
         final rootBody = utf8.decode(rootResp.bodyBytes);
-        debugPrint('Root page status: ${rootResp.statusCode}');
-        debugPrint('Root page body starts with: ${rootBody.isNotEmpty ? rootBody.substring(0, rootBody.length.clamp(0, 60)) : "(empty)"}');
+        netLog('Root page status: ${rootResp.statusCode}');
+        netLog('Root page body starts with: ${rootBody.isNotEmpty ? rootBody.substring(0, rootBody.length.clamp(0, 60)) : "(empty)"}');
         _inertiaVersion = _extractInertiaVersion(rootBody);
         // Check if age check is needed and bypass it
         await _maybeBypassAgeCheck(rootBody);
@@ -174,31 +175,31 @@ class MurrtubeApi {
       }
 
       if (_inertiaVersion == null) {
-        debugPrint('Version extraction failed, trying default version 1');
+        netLog('Version extraction failed, trying default version 1');
         _inertiaVersion = '1';
       }
-      debugPrint('Extracted version: $_inertiaVersion');
+      netLog('Extracted version: $_inertiaVersion');
       response = await _client.get(
         uri,
         headers: _headers(inertiaVersion: _inertiaVersion, homeTab: homeTab),
       );
       _updateCookiesFromResponse(response);
       body = utf8.decode(response.bodyBytes);
-      debugPrint('Retry response status: ${response.statusCode}');
-      debugPrint('Retry response body starts with: ${body.isNotEmpty ? body.substring(0, body.length.clamp(0, 2000)) : "(empty)"}');
+      netLog('Retry response status: ${response.statusCode}');
+      netLog('Retry response body starts with: ${body.isNotEmpty ? body.substring(0, body.length.clamp(0, 2000)) : "(empty)"}');
     }
 
     if (response.statusCode != 200) {
-      debugPrint('Final status code not 200, throwing.');
+      netLog('Final status code not 200, throwing.');
       throw HttpException('HTTP ${response.statusCode} for $path');
     }
 
     if (!body.startsWith('{')) {
-      debugPrint('Body is not JSON after retries, throwing.');
+      netLog('Body is not JSON after retries, throwing.');
       throw FormatException('Expected JSON for $path, got HTML');
     }
 
-    debugPrint('Parsing JSON response...');
+    netLog('Parsing JSON response...');
     return InertiaPage.fromJson(jsonDecode(body));
   }
 
@@ -211,7 +212,7 @@ class MurrtubeApi {
     final csrfMatch = csrfRegex.firstMatch(html);
     final csrfToken = csrfMatch?.group(1);
     if (csrfToken == null) {
-      debugPrint('Age check detected but no CSRF token found');
+      netLog('Age check detected but no CSRF token found');
       return;
     }
 
@@ -227,7 +228,7 @@ class MurrtubeApi {
       ageUrl = '$baseUrl$ageUrl';
     }
 
-    debugPrint('Age check detected. POSTing to: $ageUrl');
+    netLog('Age check detected. POSTing to: $ageUrl');
     final request = http.MultipartRequest('POST', Uri.parse(ageUrl))
       ..fields['authenticity_token'] = csrfToken;
 
@@ -243,17 +244,17 @@ class MurrtubeApi {
     final streamedResponse = await _client.send(request);
     final response = await http.Response.fromStream(streamedResponse);
     _updateCookiesFromResponse(response);
-    debugPrint('Age check POST status: ${response.statusCode}');
+    netLog('Age check POST status: ${response.statusCode}');
   }
 
   static String? _extractInertiaVersion(String html) {
-    debugPrint('Extracting Inertia version from HTML (${html.length} chars)');
+    netLog('Extracting Inertia version from HTML (${html.length} chars)');
     // 1. Plain JSON in script tags
     final versionRegex = RegExp(r'"version":"([^"]+)"');
     final match = versionRegex.firstMatch(html);
     if (match != null) {
       final v = match.group(1);
-      debugPrint('Found version via regex: $v');
+      netLog('Found version via regex: $v');
       return v;
     }
     // 2. data-page attribute with double quotes
@@ -269,11 +270,11 @@ class MurrtubeApi {
         final decoded = jsonDecode(cleaned);
         if (decoded is Map<String, dynamic>) {
           final v = decoded['version'] as String?;
-          debugPrint('Found version via data-page: $v');
+          netLog('Found version via data-page: $v');
           return v;
         }
       } catch (e) {
-        debugPrint('data-page parse failed: $e');
+        netLog('data-page parse failed: $e');
       }
     }
     // 2b. data-page with single quotes
@@ -289,11 +290,11 @@ class MurrtubeApi {
         final decoded = jsonDecode(cleaned);
         if (decoded is Map<String, dynamic>) {
           final v = decoded['version'] as String?;
-          debugPrint('Found version via data-page single: $v');
+          netLog('Found version via data-page single: $v');
           return v;
         }
       } catch (e) {
-        debugPrint('data-page single parse failed: $e');
+        netLog('data-page single parse failed: $e');
       }
     }
     // 3. HTML-escaped &quot;version&quot; in raw HTML
@@ -301,7 +302,7 @@ class MurrtubeApi {
     final quotMatch = quotRegex.firstMatch(html);
     if (quotMatch != null) {
       final v = quotMatch.group(1);
-      debugPrint('Found version via &quot; regex: $v');
+      netLog('Found version via &quot; regex: $v');
       return v;
     }
     // 4. window.__inertia or similar script variable
@@ -309,12 +310,12 @@ class MurrtubeApi {
     final scriptMatch = scriptRegex.firstMatch(html);
     if (scriptMatch != null) {
       final v = scriptMatch.group(1);
-      debugPrint('Found version via script: $v');
+      netLog('Found version via script: $v');
       return v;
     }
     // 5. Any occurrence of version in first 500 chars
     final dump = html.substring(0, html.length.clamp(0, 500));
-    debugPrint('No version found. HTML snippet: $dump');
+    netLog('No version found. HTML snippet: $dump');
     return null;
   }
 
@@ -500,7 +501,7 @@ class MurrtubeApi {
 
     final profileRaw = props['profile'];
     if (profileRaw == null || profileRaw is! Map<String, dynamic>) {
-      debugPrint('ProfilePage missing profile. Available props keys: ${props.keys.toList()}');
+      netLog('ProfilePage missing profile. Available props keys: ${props.keys.toList()}');
       throw Exception('User not found for slug: $slug');
     }
     final user = User.fromJson(profileRaw);
@@ -584,7 +585,7 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('blockUser status: ${response.statusCode}');
+    netLog('blockUser status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -606,7 +607,7 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('unblockUser status: ${response.statusCode}');
+    netLog('unblockUser status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -627,7 +628,7 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('subscribeToUser status: ${response.statusCode}');
+    netLog('subscribeToUser status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -648,7 +649,7 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('unsubscribeFromUser status: ${response.statusCode}');
+    netLog('unsubscribeFromUser status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -684,7 +685,7 @@ class MurrtubeApi {
     final html = utf8.decode(response.bodyBytes);
     final match = RegExp(r'<meta name="csrf-token" content="([^"]+)"').firstMatch(html);
     final token = match?.group(1);
-    debugPrint('Fetched CSRF token: ${token != null ? "${token.substring(0, token.length.clamp(0, 30))}..." : "NOT FOUND"}');
+    netLog('Fetched CSRF token: ${token != null ? "${token.substring(0, token.length.clamp(0, 30))}..." : "NOT FOUND"}');
     if (token == null || token.isEmpty) {
       throw Exception('CSRF token not found in HTML');
     }
@@ -709,8 +710,8 @@ class MurrtubeApi {
       body: {'like[medium_id]': mediumId},
     );
     _updateCookiesFromResponse(response);
-    debugPrint('likeVideo status: ${response.statusCode}');
-    debugPrint('likeVideo response body: ${utf8.decode(response.bodyBytes)}');
+    netLog('likeVideo status: ${response.statusCode}');
+    netLog('likeVideo response body: ${utf8.decode(response.bodyBytes)}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -737,7 +738,7 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('postComment status: ${response.statusCode}');
+    netLog('postComment status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -759,7 +760,7 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('deleteComment status: ${response.statusCode}');
+    netLog('deleteComment status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -787,7 +788,7 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('replyToComment status: ${response.statusCode}');
+    netLog('replyToComment status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -809,8 +810,8 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
-    debugPrint('unlikeVideo status: ${response.statusCode}');
-    debugPrint('unlikeVideo response body: ${utf8.decode(response.bodyBytes)}');
+    netLog('unlikeVideo status: ${response.statusCode}');
+    netLog('unlikeVideo response body: ${utf8.decode(response.bodyBytes)}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -832,7 +833,7 @@ class MurrtubeApi {
     );
     _updateCookiesFromResponse(response);
     final body = utf8.decode(response.bodyBytes);
-    debugPrint('getMyPlaylists status: ${response.statusCode}');
+    netLog('getMyPlaylists status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -870,8 +871,8 @@ class MurrtubeApi {
     final response = await http.Response.fromStream(streamedResponse);
     _updateCookiesFromResponse(response);
     final body = utf8.decode(response.bodyBytes);
-    debugPrint('createPlaylist status: ${response.statusCode}');
-    debugPrint('createPlaylist body: $body');
+    netLog('createPlaylist status: ${response.statusCode}');
+    netLog('createPlaylist body: $body');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -943,8 +944,8 @@ class MurrtubeApi {
     final response = await http.Response.fromStream(streamedResponse);
     _updateCookiesFromResponse(response);
     final body = utf8.decode(response.bodyBytes);
-    debugPrint('addToPlaylist status: ${response.statusCode}');
-    debugPrint('addToPlaylist body: $body');
+    netLog('addToPlaylist status: ${response.statusCode}');
+    netLog('addToPlaylist body: $body');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
@@ -977,7 +978,7 @@ class MurrtubeApi {
       }),
     );
     _updateCookiesFromResponse(response);
-    debugPrint('editTags status: ${response.statusCode}');
+    netLog('editTags status: ${response.statusCode}');
     if (response.statusCode != 200) {
       throw HttpException('HTTP ${response.statusCode}');
     }
