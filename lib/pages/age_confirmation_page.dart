@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AgeConfirmationPage extends StatelessWidget {
   final VoidCallback? onConfirmed;
+  final VoidCallback? onExit;
 
-  const AgeConfirmationPage({super.key, this.onConfirmed});
+  const AgeConfirmationPage({super.key, this.onConfirmed, this.onExit});
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +44,7 @@ class AgeConfirmationPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton(
-                      onPressed: () => _handleExit(context),
+                      onPressed: onExit ?? _exitApp,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 32,
@@ -75,14 +79,11 @@ class AgeConfirmationPage extends StatelessWidget {
     onConfirmed?.call();
   }
 
-  void _handleExit(BuildContext context) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please close the app and uninstall it'),
-          duration: Duration(seconds: 5),
-        ),
-      );
+  static void _exitApp() {
+    if (Platform.isAndroid || Platform.isIOS) {
+      SystemNavigator.pop();
+    } else {
+      exit(0);
     }
   }
 }

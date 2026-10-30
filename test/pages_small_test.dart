@@ -87,14 +87,15 @@ void main() {
   });
 
   group('AgeConfirmationPage', () {
-    testWidgets('exit shows snackbar', (tester) async {
-      await pumpApp(tester, const AgeConfirmationPage());
+    testWidgets('exit invokes onExit', (tester) async {
+      var exited = false;
+      await pumpApp(
+        tester,
+        AgeConfirmationPage(onExit: () => exited = true),
+      );
       await tester.tap(find.text('Exit'));
       await tester.pump();
-      expect(
-        find.text('Please close the app and uninstall it'),
-        findsOneWidget,
-      );
+      expect(exited, isTrue);
     });
 
     testWidgets('confirm calls onConfirmed', (tester) async {
