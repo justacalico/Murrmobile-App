@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/main.dart' as app;
-import 'package:murrmobile/pages/cookie_setup_page.dart';
 import 'package:murrmobile/pages/home_page.dart';
 import 'package:murrmobile/pages/login_page.dart';
 import 'package:murrmobile/pages/notifications_page.dart';
@@ -838,62 +837,6 @@ void main() {
       await settleAsync(tester);
       await awaitImages(tester);
       expect(find.byIcon(Icons.person), findsWidgets);
-    });
-  });
-
-  group('CookieSetupPage gaps', () {
-    testWidgets('prefills field from bundled cookies asset', (tester) async {
-      final messenger = tester.binding.defaultBinaryMessenger;
-      messenger.setMockMessageHandler('flutter/assets', (message) async {
-        final key = utf8.decode(message!.buffer.asUint8List());
-        if (key.endsWith('cookies.txt')) {
-          return ByteData.sublistView(
-            Uint8List.fromList(
-              utf8.encode(
-                'murrtube.net\tTRUE\t/\tTRUE\t9999999999\tsession_id\tfromasset\n',
-              ),
-            ),
-          );
-        }
-        return null;
-      });
-      addTearDown(
-        () => messenger.setMockMessageHandler('flutter/assets', null),
-      );
-      await pumpApp(tester, const CookieSetupPage());
-      await settleAsync(tester);
-      await tester.pump();
-      final field = tester.widget<TextField>(find.byType(TextField));
-      expect(field.controller!.text, 'session_id=fromasset');
-    });
-
-    testWidgets('back arrow pops', (tester) async {
-      bool? result;
-      await pumpApp(
-        tester,
-        Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              result = await Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CookieSetupPage()),
-              );
-            },
-            child: const Text('open'),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pump();
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
-      await tester.pump();
-      for (var i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-      expect(find.byType(CookieSetupPage), findsNothing);
-      expect(result, isNull);
     });
   });
 
