@@ -1,5 +1,5 @@
 name: murrmobile
-description: "A new Flutter project."
+description: "A native Flutter client for murrtube.net."
 publish_to: 'none'
 version: 0.3.1+6
 

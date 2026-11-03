@@ -11,17 +11,16 @@
 
 ## What is this?
 
-Unofficial app for [murrtube.net](https://murrtube.net). Built in Flutter, reverse-engineered from the site's Inertia.js frontend since there's no public API. Works on iOS, Android, macOS, Linux, Windows, and Web.
+Unofficial app for [murrtube.net](https://murrtube.net). Built in Flutter, reverse-engineered from the site's Inertia.js frontend since there's no public API. Works on iOS, Android, macOS, Linux, and Windows.
 
 ## Features
 
 - Browse Trending / Latest / Subscriptions
-- HLS video player with quality switching, fullscreen, scrubbing, wakelock
+- HLS video player with fullscreen, scrubbing, playback speed, wakelock
 - Search videos, tags, and users with live suggestions
 - Comments (view, post, reply, delete)
 - User profiles, subscribe/unsubscribe, block/unblock
 - Notifications feed
-- Upload videos from the app
 - Dark / light / AMOLED themes
 
 ## Building
