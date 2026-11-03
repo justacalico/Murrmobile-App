@@ -24,7 +24,12 @@ class VideoDetailPage extends StatefulWidget {
   final String? commentId;
   final String? heroTag;
 
-  const VideoDetailPage({super.key, required this.shortCode, this.commentId, this.heroTag});
+  const VideoDetailPage({
+    super.key,
+    required this.shortCode,
+    this.commentId,
+    this.heroTag,
+  });
 
   @override
   State<VideoDetailPage> createState() => _VideoDetailPageState();
@@ -40,6 +45,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   bool _showComments = false;
   bool _showSkip = false;
   bool _skipForward = true;
+  double _tapX = 0;
   bool _isDraggingTimeline = false;
   double _dragProgress = 0;
   bool _viewerCanLike = false;
@@ -122,6 +128,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
             addKeys(c.replies);
           }
         }
+
         addKeys(_comments);
       });
       if (_medium?.hlsUrl != null) {
@@ -140,7 +147,8 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     final target = widget.commentId;
     if (target == null) return false;
     if (commentId == target) return true;
-    if (target.startsWith('comment-') && commentId == target.substring(8)) return true;
+    if (target.startsWith('comment-') && commentId == target.substring(8))
+      return true;
     return false;
   }
 
@@ -181,10 +189,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       builder: (ctx) => _SaveSheet(
         medium: _medium!,
         onCreate: (name, visibility) async {
-          await MurrtubeApi.createPlaylist(
-            name: name,
-            visibility: visibility,
-          );
+          await MurrtubeApi.createPlaylist(name: name, visibility: visibility);
           final updated = await MurrtubeApi.getMyPlaylists();
           final created = updated.firstWhere(
             (p) => p.name == name,
@@ -197,9 +202,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
           );
           if (mounted) {
             Navigator.of(ctx).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Saved to $name')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Saved to $name')));
           }
         },
         onSelect: (playlist) async {
@@ -290,7 +295,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to ${wasLiked ? 'unlike' : 'like'}: $e')),
+          SnackBar(
+            content: Text('Failed to ${wasLiked ? 'unlike' : 'like'}: $e'),
+          ),
         );
       }
     }
@@ -385,7 +392,8 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     if (entering) {
       _startFullscreenUITimer();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      final isPortrait = _controller != null &&
+      final isPortrait =
+          _controller != null &&
           _controller!.value.isInitialized &&
           _controller!.value.size.height > _controller!.value.size.width;
       if (isPortrait) {
@@ -425,9 +433,6 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     }
   }
 
-  // coverage:ignore-start
-  // The play/pause overlay above the zones wins every hit, so these
-  // handlers can't fire in the current layout.
   void _onDoubleTap(bool forward) {
     if (_controller == null || !_controller!.value.isInitialized) return;
     final pos = _controller!.value.position;
@@ -452,7 +457,6 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       if (mounted) setState(() => _showSkip = false);
     });
   }
-  // coverage:ignore-end
 
   String _formatDuration(Duration d) {
     String two(int n) => n.toString().padLeft(2, '0');
@@ -500,9 +504,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     } catch (e) {
       debugPrint('_replyToComment error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to post reply')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to post reply')));
       }
     }
   }
@@ -512,10 +516,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     if (text.isEmpty || _medium == null) return;
     setState(() => _postingComment = true);
     try {
-      await MurrtubeApi.postComment(
-        mediumId: _medium!.id,
-        body: text,
-      );
+      await MurrtubeApi.postComment(mediumId: _medium!.id, body: text);
       _commentController.clear();
       final result = await MurrtubeApi.getVideo(widget.shortCode);
       if (mounted) {
@@ -528,9 +529,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       debugPrint('postComment error: $e');
       if (mounted) setState(() => _postingComment = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to post comment')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to post comment')));
       }
     }
   }
@@ -588,9 +589,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                 CachedNetworkImage(
                   imageUrl: medium.thumbnailUrl,
                   fit: BoxFit.contain,
-                  placeholder: (_, _) => Container(
-                    color: Colors.black,
-                  ),
+                  placeholder: (_, _) => Container(color: Colors.black),
                   errorWidget: (_, _, _) => Container(
                     color: Colors.black,
                     child: const Icon(
@@ -599,12 +598,17 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                     ),
                   ),
                 ),
-              // Tap overlay: toggles UI
+              // Tap overlay: toggles UI; double tap seeks by side
               Positioned.fill(
-                child: GestureDetector(
-                  onTap: _toggleFullscreenUI,
-                  behavior: HitTestBehavior.translucent,
-                  child: Container(color: Colors.transparent),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => GestureDetector(
+                    onTap: _toggleFullscreenUI,
+                    onDoubleTapDown: (d) => _tapX = d.localPosition.dx,
+                    onDoubleTap: () =>
+                        _onDoubleTap(_tapX >= constraints.maxWidth / 2),
+                    behavior: HitTestBehavior.translucent,
+                    child: Container(color: Colors.transparent),
+                  ),
                 ),
               ),
               // Top controls
@@ -640,11 +644,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                         ),
                       ),
                       // Speed button
-                      Positioned(
-                        top: 12,
-                        right: 108,
-                        child: _speedButton(),
-                      ),
+                      Positioned(top: 12, right: 108, child: _speedButton()),
                       // Mute button
                       Positioned(
                         top: 12,
@@ -697,7 +697,8 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                       Center(
                         child: GestureDetector(
                           onTap: () {
-                            if (_controller != null && _controller!.value.isInitialized) {
+                            if (_controller != null &&
+                                _controller!.value.isInitialized) {
                               setState(() {
                                 _controller!.value.isPlaying
                                     ? _controller!.pause()
@@ -712,7 +713,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                               borderRadius: BorderRadius.circular(50),
                             ),
                             child: Icon(
-                              (_controller != null && _controller!.value.isInitialized && _controller!.value.isPlaying)
+                              (_controller != null &&
+                                      _controller!.value.isInitialized &&
+                                      _controller!.value.isPlaying)
                                   ? Icons.pause_rounded
                                   : Icons.play_arrow_rounded,
                               size: 48,
@@ -758,30 +761,50 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                   final dur = _controller!.value.duration;
                                   _controller!.seekTo(
                                     Duration(
-                                      milliseconds: (fraction.clamp(0.0, 1.0) * dur.inMilliseconds).round(),
+                                      milliseconds:
+                                          (fraction.clamp(0.0, 1.0) *
+                                                  dur.inMilliseconds)
+                                              .round(),
                                     ),
                                   );
                                 }
 
-                                final progress = _controller!.value.duration.inMilliseconds > 0
-                                    ? _controller!.value.position.inMilliseconds /
-                                        _controller!.value.duration.inMilliseconds
+                                final progress =
+                                    _controller!.value.duration.inMilliseconds >
+                                        0
+                                    ? _controller!
+                                              .value
+                                              .position
+                                              .inMilliseconds /
+                                          _controller!
+                                              .value
+                                              .duration
+                                              .inMilliseconds
                                     : 0.0;
 
-                                final currentFraction = _isDraggingTimeline ? _dragProgress : progress;
+                                final currentFraction = _isDraggingTimeline
+                                    ? _dragProgress
+                                    : progress;
 
                                 return GestureDetector(
                                   behavior: HitTestBehavior.translucent,
                                   onTapDown: (details) {
-                                    final fraction = details.localPosition.dx / barWidth;
+                                    final fraction =
+                                        details.localPosition.dx / barWidth;
                                     seekToFraction(fraction);
                                   },
                                   onHorizontalDragStart: (_) {
                                     setState(() => _isDraggingTimeline = true);
                                   },
                                   onHorizontalDragUpdate: (details) {
-                                    final fraction = details.localPosition.dx / barWidth;
-                                    setState(() => _dragProgress = fraction.clamp(0.0, 1.0));
+                                    final fraction =
+                                        details.localPosition.dx / barWidth;
+                                    setState(
+                                      () => _dragProgress = fraction.clamp(
+                                        0.0,
+                                        1.0,
+                                      ),
+                                    );
                                   },
                                   onHorizontalDragEnd: (_) {
                                     seekToFraction(_dragProgress);
@@ -803,34 +826,49 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                       children: [
                                         Container(
                                           height: 4,
-                                          color: Colors.white.withValues(alpha: 0.25),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.25,
+                                          ),
                                         ),
                                         FractionallySizedBox(
                                           alignment: Alignment.centerLeft,
                                           widthFactor: currentFraction,
                                           child: Container(
                                             height: 4,
-                                            color: Theme.of(context).colorScheme.primary,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                           ),
                                         ),
                                         Positioned(
-                                          left: (currentFraction * barWidth - 8).clamp(0.0, barWidth - 16),
+                                          left: (currentFraction * barWidth - 8)
+                                              .clamp(0.0, barWidth - 16),
                                           child: AnimatedContainer(
-                                            duration: const Duration(milliseconds: 150),
+                                            duration: const Duration(
+                                              milliseconds: 150,
+                                            ),
                                             curve: Curves.easeOut,
-                                            width: _isDraggingTimeline ? 16 : 12,
-                                            height: _isDraggingTimeline ? 16 : 12,
+                                            width: _isDraggingTimeline
+                                                ? 16
+                                                : 12,
+                                            height: _isDraggingTimeline
+                                                ? 16
+                                                : 12,
                                             decoration: BoxDecoration(
                                               color: Colors.white,
                                               shape: BoxShape.circle,
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.4),
                                                   blurRadius: 6,
                                                   spreadRadius: 1,
                                                 ),
                                                 BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.3),
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.3),
                                                   blurRadius: 2,
                                                   offset: const Offset(0, 1),
                                                 ),
@@ -841,7 +879,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                                 width: 6,
                                                 height: 6,
                                                 decoration: BoxDecoration(
-                                                  color: Theme.of(context).colorScheme.primary,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),
@@ -855,17 +895,24 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                               },
                             ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     _formatDuration(
                                       _isDraggingTimeline
                                           ? Duration(
-                                              milliseconds: (_dragProgress *
-                                                      _controller!.value.duration.inMilliseconds)
-                                                  .round(),
+                                              milliseconds:
+                                                  (_dragProgress *
+                                                          _controller!
+                                                              .value
+                                                              .duration
+                                                              .inMilliseconds)
+                                                      .round(),
                                             )
                                           : _controller!.value.position,
                                     ),
@@ -876,7 +923,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                     ),
                                   ),
                                   Text(
-                                    _formatDuration(_controller!.value.duration),
+                                    _formatDuration(
+                                      _controller!.value.duration,
+                                    ),
                                     style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 11,
@@ -914,801 +963,1013 @@ class _VideoDetailPageState extends State<VideoDetailPage>
           child: CustomScrollView(
             controller: _scrollController,
             slivers: [
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Video Player / Thumbnail
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1200),
-                      child: AspectRatio(
-                        aspectRatio: 16 / 9,
-                        child: Container(
-                          color: Colors.black,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                            if (_controller != null && _controller!.value.isInitialized)
-                              FittedBox(
-                                fit: BoxFit.contain,
-                                child: SizedBox(
-                                  width: _controller!.value.size.width,
-                                  height: _controller!.value.size.height,
-                                  child: VideoPlayer(_controller!),
-                                ),
-                              )
-                            else
-                              Hero(
-                                tag: widget.heroTag ?? 'video-thumb-${widget.shortCode}',
-                                child: CachedNetworkImage(
-                                  imageUrl: medium.thumbnailUrl,
-                                  fit: BoxFit.contain,
-                                  placeholder: (_, __) => Container(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    child: Icon(
-                                      Icons.broken_image_outlined,
-                                      color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (medium.hlsUrl == null)
-                              const Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.videocam_off_outlined,
-                                      color: Colors.white54,
-                                      size: 40,
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Video unavailable',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                    // Double tap zones
-                    // coverage:ignore-start
-                    // The play/pause overlay above the zones wins every hit,
-                    // so these can't fire in the current layout.
-                    if (_controller != null && _controller!.value.isInitialized)
-                      Positioned.fill(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onDoubleTap: () => _onDoubleTap(false),
-                                behavior: HitTestBehavior.translucent,
-                                child: Container(color: Colors.transparent),
-                              ),
-                            ),
-                            Expanded(
-                              child: GestureDetector(
-                                onDoubleTap: () => _onDoubleTap(true),
-                                behavior: HitTestBehavior.translucent,
-                                child: Container(color: Colors.transparent),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    // coverage:ignore-end
-                    // Play/Pause single tap overlay
-                    if (_controller != null && _controller!.value.isInitialized)
-                      Positioned.fill(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _controller!.value.isPlaying
-                                  ? _controller!.pause()
-                                  : _controller!.play();
-                            });
-                          },
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Video Player / Thumbnail
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1200),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
                           child: Container(
-                            color: Colors.transparent,
-                            child: Center(
-                              child: AnimatedOpacity(
-                                opacity: _controller!.value.isPlaying ? 0 : 1,
-                                duration: const Duration(milliseconds: 200),
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black
-                                        .withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(50),
-                                  ),
-                                  child: Icon(
-                                    Icons.play_arrow_rounded,
-                                    size: 40,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    // Skip animation overlay
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: AnimatedOpacity(
-                          opacity: _showSkip ? 1 : 0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Container(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            child: Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _skipForward
-                                        ? Icons.forward_10
-                                        : Icons.replay_10,
-                                    color: Colors.white,
-                                    size: 48,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _skipForward ? '+10s' : '-10s',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (_controller != null &&
+                                    _controller!.value.isInitialized)
+                                  FittedBox(
+                                    fit: BoxFit.contain,
+                                    child: SizedBox(
+                                      width: _controller!.value.size.width,
+                                      height: _controller!.value.size.height,
+                                      child: VideoPlayer(_controller!),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Bottom timeline
-                    if (_controller != null && _controller!.value.isInitialized)
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.fromLTRB(0, 16, 0, 10),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(alpha: 0.6),
-                              ],
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final barWidth = constraints.maxWidth;
-                                  void seekToFraction(double fraction) {
-                                    final dur = _controller!.value.duration;
-                                    _controller!.seekTo(
-                                      Duration(
-                                        milliseconds: (fraction.clamp(0.0, 1.0) * dur.inMilliseconds).round(),
+                                  )
+                                else
+                                  Hero(
+                                    tag:
+                                        widget.heroTag ??
+                                        'video-thumb-${widget.shortCode}',
+                                    child: CachedNetworkImage(
+                                      imageUrl: medium.thumbnailUrl,
+                                      fit: BoxFit.contain,
+                                      placeholder: (_, __) => Container(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerHighest,
                                       ),
-                                    );
-                                  }
-
-                                  final progress = _controller!.value.duration.inMilliseconds > 0
-                                      ? _controller!.value.position.inMilliseconds /
-                                          _controller!.value.duration.inMilliseconds
-                                      : 0.0;
-
-                                  final currentFraction = _isDraggingTimeline ? _dragProgress : progress;
-
-                                  return GestureDetector(
-                                    behavior: HitTestBehavior.translucent,
-                                    onTapDown: (details) {
-                                      final fraction = details.localPosition.dx / barWidth;
-                                      seekToFraction(fraction);
-                                    },
-                                    onHorizontalDragStart: (_) {
-                                      setState(() => _isDraggingTimeline = true);
-                                    },
-                                    onHorizontalDragUpdate: (details) {
-                                      final fraction = details.localPosition.dx / barWidth;
-                                      setState(() => _dragProgress = fraction.clamp(0.0, 1.0));
-                                    },
-                                    onHorizontalDragEnd: (_) {
-                                      seekToFraction(_dragProgress);
-                                      setState(() => _isDraggingTimeline = false);
-                                    },
-                                    onHorizontalDragCancel: () {
-                                      setState(() => _isDraggingTimeline = false);
-                                    },
-                                    child: Container(
-                                      height: 32,
-                                      alignment: Alignment.center,
-                                      child: Stack(
-                                        alignment: Alignment.centerLeft,
-                                        children: [
-                                          // Background track
-                                          Container(
-                                            height: 4,
-                                            color: Colors.white.withValues(alpha: 0.25),
+                                      errorWidget: (_, __, ___) => Container(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surfaceContainerHighest,
+                                        child: Icon(
+                                          Icons.broken_image_outlined,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium?.color ??
+                                              Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                if (medium.hlsUrl == null)
+                                  const Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.videocam_off_outlined,
+                                          color: Colors.white54,
+                                          size: 40,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Video unavailable',
+                                          style: TextStyle(
+                                            color: Colors.white70,
                                           ),
-                                          // Filled progress
-                                          FractionallySizedBox(
-                                            alignment: Alignment.centerLeft,
-                                            widthFactor: currentFraction,
-                                            child: Container(
-                                              height: 4,
-                                              color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                // Tap toggles play; double tap seeks +/-10s by side.
+                                if (_controller != null &&
+                                    _controller!.value.isInitialized)
+                                  Positioned.fill(
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) =>
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _controller!.value.isPlaying
+                                                    ? _controller!.pause()
+                                                    : _controller!.play();
+                                              });
+                                            },
+                                            onDoubleTapDown: (d) =>
+                                                _tapX = d.localPosition.dx,
+                                            onDoubleTap: () => _onDoubleTap(
+                                              _tapX >= constraints.maxWidth / 2,
                                             ),
-                                          ),
-                                          // Thumb / head
-                                          Positioned(
-                                            left: (currentFraction * barWidth - 8).clamp(0.0, barWidth - 16),
-                                            child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 150),
-                                              curve: Curves.easeOut,
-                                              width: _isDraggingTimeline ? 16 : 12,
-                                              height: _isDraggingTimeline ? 16 : 12,
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-                                                    blurRadius: 6,
-                                                    spreadRadius: 1,
-                                                  ),
-                                                  BoxShadow(
-                                                    color: Colors.black.withValues(alpha: 0.3),
-                                                    blurRadius: 2,
-                                                    offset: const Offset(0, 1),
-                                                  ),
-                                                ],
-                                              ),
+                                            child: Container(
+                                              color: Colors.transparent,
                                               child: Center(
-                                                child: Container(
-                                                  width: 6,
-                                                  height: 6,
-                                                  decoration: BoxDecoration(
-                                                    color: Theme.of(context).colorScheme.primary,
-                                                    shape: BoxShape.circle,
+                                                child: AnimatedOpacity(
+                                                  opacity:
+                                                      _controller!
+                                                          .value
+                                                          .isPlaying
+                                                      ? 0
+                                                      : 1,
+                                                  duration: const Duration(
+                                                    milliseconds: 200,
+                                                  ),
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          16,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                            alpha: 0.6,
+                                                          ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            50,
+                                                          ),
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.play_arrow_rounded,
+                                                      size: 40,
+                                                      color: Colors.white,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
                                             ),
                                           ),
+                                    ),
+                                  ),
+                                // Skip animation overlay
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: AnimatedOpacity(
+                                      opacity: _showSkip ? 1 : 0,
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      child: Container(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                        child: Center(
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                _skipForward
+                                                    ? Icons.forward_10
+                                                    : Icons.replay_10,
+                                                color: Colors.white,
+                                                size: 48,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                _skipForward ? '+10s' : '-10s',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Bottom timeline
+                                if (_controller != null &&
+                                    _controller!.value.isInitialized)
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        0,
+                                        16,
+                                        0,
+                                        10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
+                                            Colors.black.withValues(alpha: 0.6),
+                                          ],
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final barWidth =
+                                                  constraints.maxWidth;
+                                              void seekToFraction(
+                                                double fraction,
+                                              ) {
+                                                final dur =
+                                                    _controller!.value.duration;
+                                                _controller!.seekTo(
+                                                  Duration(
+                                                    milliseconds:
+                                                        (fraction.clamp(
+                                                                  0.0,
+                                                                  1.0,
+                                                                ) *
+                                                                dur.inMilliseconds)
+                                                            .round(),
+                                                  ),
+                                                );
+                                              }
+
+                                              final progress =
+                                                  _controller!
+                                                          .value
+                                                          .duration
+                                                          .inMilliseconds >
+                                                      0
+                                                  ? _controller!
+                                                            .value
+                                                            .position
+                                                            .inMilliseconds /
+                                                        _controller!
+                                                            .value
+                                                            .duration
+                                                            .inMilliseconds
+                                                  : 0.0;
+
+                                              final currentFraction =
+                                                  _isDraggingTimeline
+                                                  ? _dragProgress
+                                                  : progress;
+
+                                              return GestureDetector(
+                                                behavior:
+                                                    HitTestBehavior.translucent,
+                                                onTapDown: (details) {
+                                                  final fraction =
+                                                      details.localPosition.dx /
+                                                      barWidth;
+                                                  seekToFraction(fraction);
+                                                },
+                                                onHorizontalDragStart: (_) {
+                                                  setState(
+                                                    () => _isDraggingTimeline =
+                                                        true,
+                                                  );
+                                                },
+                                                onHorizontalDragUpdate:
+                                                    (details) {
+                                                      final fraction =
+                                                          details
+                                                              .localPosition
+                                                              .dx /
+                                                          barWidth;
+                                                      setState(
+                                                        () => _dragProgress =
+                                                            fraction.clamp(
+                                                              0.0,
+                                                              1.0,
+                                                            ),
+                                                      );
+                                                    },
+                                                onHorizontalDragEnd: (_) {
+                                                  seekToFraction(_dragProgress);
+                                                  setState(
+                                                    () => _isDraggingTimeline =
+                                                        false,
+                                                  );
+                                                },
+                                                onHorizontalDragCancel: () {
+                                                  setState(
+                                                    () => _isDraggingTimeline =
+                                                        false,
+                                                  );
+                                                },
+                                                child: Container(
+                                                  height: 32,
+                                                  alignment: Alignment.center,
+                                                  child: Stack(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    children: [
+                                                      // Background track
+                                                      Container(
+                                                        height: 4,
+                                                        color: Colors.white
+                                                            .withValues(
+                                                              alpha: 0.25,
+                                                            ),
+                                                      ),
+                                                      // Filled progress
+                                                      FractionallySizedBox(
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        widthFactor:
+                                                            currentFraction,
+                                                        child: Container(
+                                                          height: 4,
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                        ),
+                                                      ),
+                                                      // Thumb / head
+                                                      Positioned(
+                                                        left:
+                                                            (currentFraction *
+                                                                        barWidth -
+                                                                    8)
+                                                                .clamp(
+                                                                  0.0,
+                                                                  barWidth - 16,
+                                                                ),
+                                                        child: AnimatedContainer(
+                                                          duration:
+                                                              const Duration(
+                                                                milliseconds:
+                                                                    150,
+                                                              ),
+                                                          curve: Curves.easeOut,
+                                                          width:
+                                                              _isDraggingTimeline
+                                                              ? 16
+                                                              : 12,
+                                                          height:
+                                                              _isDraggingTimeline
+                                                              ? 16
+                                                              : 12,
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.white,
+                                                            shape:
+                                                                BoxShape.circle,
+                                                            boxShadow: [
+                                                              BoxShadow(
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .primary
+                                                                        .withValues(
+                                                                          alpha:
+                                                                              0.4,
+                                                                        ),
+                                                                blurRadius: 6,
+                                                                spreadRadius: 1,
+                                                              ),
+                                                              BoxShadow(
+                                                                color: Colors
+                                                                    .black
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.3,
+                                                                    ),
+                                                                blurRadius: 2,
+                                                                offset:
+                                                                    const Offset(
+                                                                      0,
+                                                                      1,
+                                                                    ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          child: Center(
+                                                            child: Container(
+                                                              width: 6,
+                                                              height: 6,
+                                                              decoration: BoxDecoration(
+                                                                color: Theme.of(
+                                                                  context,
+                                                                ).colorScheme.primary,
+                                                                shape: BoxShape
+                                                                    .circle,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                Text(
+                                                  _formatDuration(
+                                                    _isDraggingTimeline
+                                                        ? Duration(
+                                                            milliseconds:
+                                                                (_dragProgress *
+                                                                        _controller!
+                                                                            .value
+                                                                            .duration
+                                                                            .inMilliseconds)
+                                                                    .round(),
+                                                          )
+                                                        : _controller!
+                                                              .value
+                                                              .position,
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  _formatDuration(
+                                                    _controller!.value.duration,
+                                                  ),
+                                                  style: TextStyle(
+                                                    color: Colors.white70,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _formatDuration(
-                                        _isDraggingTimeline
-                                            ? Duration(
-                                                milliseconds: (_dragProgress *
-                                                        _controller!.value.duration.inMilliseconds)
-                                                    .round(),
-                                              )
-                                            : _controller!.value.position,
-                                      ),
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatDuration(_controller!.value.duration),
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    // Back button (last so it sits on top)
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.arrow_back_ios_new,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Speed button
-                    Positioned(
-                      top: 12,
-                      right: 100,
-                      child: _speedButton(),
-                    ),
-                    // Mute button
-                    Positioned(
-                      top: 12,
-                      right: 56,
-                      child: GestureDetector(
-                        onTap: _toggleMute,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            _isMuted ? Icons.volume_off : Icons.volume_up,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Fullscreen button
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: GestureDetector(
-                        onTap: _toggleFullscreen,
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.fullscreen,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                ),
-                // Info
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        medium.title,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      GestureDetector(
-                        onTap: () {
-                          _pauseVideoIfNeeded();
-                          pushPage(
-                            context,
-                            builder: (_) => ProfilePage(
-                              slug: medium.user.slug,
-                            ),
-                          ).then((_) {
-                            if (mounted) _resumeVideoIfNeeded();
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            ClipOval(
-                              child: medium.user.avatarUrl != null
-                                  ? CachedNetworkImage(
-                                      imageUrl: medium.user.avatarUrl!,
-                                      width: 36,
-                                      height: 36,
-                                      fit: BoxFit.cover,
-                                      placeholder: (_, __) => Container(
-                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                      ),
-                                      errorWidget: (_, __, ___) => Icon(
-                                        Icons.person,
-                                        color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
-                                      ),
-                                    )
-                                  : Container(
-                                      width: 36,
-                                      height: 36,
+                                  ),
+                                // Back button (last so it sits on top)
+                                Positioned(
+                                  top: 12,
+                                  left: 12,
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.pop(context),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(18),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Icon(
-                                        Icons.person,
+                                        Icons.arrow_back_ios_new,
                                         size: 18,
-                                        color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                                        color: Colors.white,
                                       ),
                                     ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    medium.user.name,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                // Speed button
+                                Positioned(
+                                  top: 12,
+                                  right: 100,
+                                  child: _speedButton(),
+                                ),
+                                // Mute button
+                                Positioned(
+                                  top: 12,
+                                  right: 56,
+                                  child: GestureDetector(
+                                    onTap: _toggleMute,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        _isMuted
+                                            ? Icons.volume_off
+                                            : Icons.volume_up,
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
-                                  Text(
-                                    '@${medium.user.slug}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                                ),
+                                // Fullscreen button
+                                Positioned(
+                                  top: 12,
+                                  right: 12,
+                                  child: GestureDetector(
+                                    onTap: _toggleFullscreen,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.fullscreen,
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
                                     ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Info
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            medium.title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.onSurface,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          GestureDetector(
+                            onTap: () {
+                              _pauseVideoIfNeeded();
+                              pushPage(
+                                context,
+                                builder: (_) =>
+                                    ProfilePage(slug: medium.user.slug),
+                              ).then((_) {
+                                if (mounted) _resumeVideoIfNeeded();
+                              });
+                            },
+                            child: Row(
+                              children: [
+                                ClipOval(
+                                  child: medium.user.avatarUrl != null
+                                      ? CachedNetworkImage(
+                                          imageUrl: medium.user.avatarUrl!,
+                                          width: 36,
+                                          height: 36,
+                                          fit: BoxFit.cover,
+                                          placeholder: (_, __) => Container(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                          ),
+                                          errorWidget: (_, __, ___) => Icon(
+                                            Icons.person,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).textTheme.bodyMedium?.color ??
+                                                Colors.grey,
+                                          ),
+                                        )
+                                      : Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(
+                                              18,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.person,
+                                            size: 18,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).textTheme.bodyMedium?.color ??
+                                                Colors.grey,
+                                          ),
+                                        ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        medium.user.name,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                        ),
+                                      ),
+                                      Text(
+                                        '@${medium.user.slug}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium?.color ??
+                                              Colors.grey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).dividerColor.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _StatItem(
+                                  icon: Icons.visibility_outlined,
+                                  value: '${medium.viewsCount}',
+                                  label: 'Views',
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 28,
+                                  color: Theme.of(
+                                    context,
+                                  ).dividerColor.withValues(alpha: 0.3),
+                                ),
+                                GestureDetector(
+                                  onTap: _viewerCanLike ? _toggleLike : null,
+                                  child: _StatItem(
+                                    icon: _viewerLiked
+                                        ? Icons.favorite_rounded
+                                        : Icons.favorite_border_rounded,
+                                    value: '$_likesCount',
+                                    label: 'Likes',
+                                    iconColor: _viewerLiked
+                                        ? Theme.of(context).colorScheme.primary
+                                        : null,
+                                  ),
+                                ),
+                                if (MurrtubeApi.isAuthenticated) ...[
+                                  Container(
+                                    width: 1,
+                                    height: 28,
+                                    color: Theme.of(
+                                      context,
+                                    ).dividerColor.withValues(alpha: 0.3),
+                                  ),
+                                  GestureDetector(
+                                    onTap: _showSaveBottomSheet,
+                                    child: _StatItem(
+                                      icon: Icons.playlist_add_rounded,
+                                      value: '',
+                                      label: 'Save',
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 1,
+                                    height: 28,
+                                    color: Theme.of(
+                                      context,
+                                    ).dividerColor.withValues(alpha: 0.3),
                                   ),
                                 ],
+                                _StatItem(
+                                  icon: Icons.chat_bubble_outline,
+                                  value: '${medium.commentsCount}',
+                                  label: 'Comments',
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (medium.description != null &&
+                              medium.description!.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            LinkifyText(
+                              text: medium.description!,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color ??
+                                    Colors.grey,
+                                height: 1.5,
                               ),
                             ),
                           ],
-                        ),
+                          if (medium.tags.isNotEmpty ||
+                              MurrtubeApi.isAuthenticated) ...[
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: medium.tags
+                                        .map(
+                                          (tag) => GestureDetector(
+                                            onTap: () {
+                                              _pauseVideoIfNeeded();
+                                              pushPage(
+                                                context,
+                                                builder: (_) => SearchPage(
+                                                  initialQuery: tag.name,
+                                                ),
+                                              ).then((_) {
+                                                if (mounted)
+                                                  _resumeVideoIfNeeded();
+                                              });
+                                            },
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.surface,
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                  color: Theme.of(context)
+                                                      .dividerColor
+                                                      .withValues(alpha: 0.3),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '#${tag.name}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color:
+                                                      Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.color ??
+                                                      Colors.grey,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.share, size: 18),
+                                  onPressed: () => Share.share(
+                                    'https://murrtube.net/v/${widget.shortCode}',
+                                  ),
+                                  tooltip: 'Share',
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                if (MurrtubeApi.isAuthenticated)
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, size: 18),
+                                    onPressed: _showTagEditSheet,
+                                    tooltip: 'Edit tags',
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
+                    ),
+                    // Comments toggle
+                    GestureDetector(
+                      onTap: () =>
+                          setState(() => _showComments = !_showComments),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).dividerColor.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _StatItem(
-                              icon: Icons.visibility_outlined,
-                              value: '${medium.viewsCount}',
-                              label: 'Views',
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 18,
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color ??
+                                  Colors.grey,
                             ),
-                            Container(
-                              width: 1,
-                              height: 28,
-                              color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-                            ),
-                            GestureDetector(
-                              onTap: _viewerCanLike ? _toggleLike : null,
-                              child: _StatItem(
-                                icon: _viewerLiked
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                value: '$_likesCount',
-                                label: 'Likes',
-                                iconColor: _viewerLiked ? Theme.of(context).colorScheme.primary : null,
+                            const SizedBox(width: 10),
+                            Text(
+                              '${medium.commentsCount} Comments',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
-                            if (MurrtubeApi.isAuthenticated) ...[
-                              Container(
-                                width: 1,
-                                height: 28,
-                                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                            const Spacer(),
+                            AnimatedRotation(
+                              turns: _showComments ? 0.5 : 0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(
+                                Icons.expand_more,
+                                color:
+                                    Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color ??
+                                    Colors.grey,
                               ),
-                              GestureDetector(
-                                onTap: _showSaveBottomSheet,
-                                child: _StatItem(
-                                  icon: Icons.playlist_add_rounded,
-                                  value: '',
-                                  label: 'Save',
-                                ),
-                              ),
-                              Container(
-                                width: 1,
-                                height: 28,
-                                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-                              ),
-                            ],
-                            _StatItem(
-                              icon: Icons.chat_bubble_outline,
-                              value: '${medium.commentsCount}',
-                              label: 'Comments',
                             ),
                           ],
                         ),
-                      ),
-                      if (medium.description != null &&
-                          medium.description!.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        LinkifyText(
-                          text: medium.description!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                      if (medium.tags.isNotEmpty || MurrtubeApi.isAuthenticated) ...[
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: medium.tags
-                                    .map((tag) => GestureDetector(
-                                          onTap: () {
-                                            _pauseVideoIfNeeded();
-                                            pushPage(
-                                              context,
-                                              builder: (_) => SearchPage(initialQuery: tag.name),
-                                            ).then((_) {
-                                              if (mounted) _resumeVideoIfNeeded();
-                                            });
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context).colorScheme.surface,
-                                              borderRadius: BorderRadius.circular(16),
-                                              border: Border.all(
-                                                color: Theme.of(context).dividerColor
-                                                    .withValues(alpha: 0.3),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              '#${tag.name}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ))
-                                    .toList(),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.share, size: 18),
-                              onPressed: () => Share.share(
-                                'https://murrtube.net/v/${widget.shortCode}',
-                              ),
-                              tooltip: 'Share',
-                              visualDensity: VisualDensity.compact,
-                            ),
-                            if (MurrtubeApi.isAuthenticated)
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 18),
-                                onPressed: _showTagEditSheet,
-                                tooltip: 'Edit tags',
-                                visualDensity: VisualDensity.compact,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Comments toggle
-                GestureDetector(
-                  onTap: () => setState(() => _showComments = !_showComments),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 18,
-                          color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                    if (_showComments) ...[
+                      const SizedBox(height: 10),
+                      if (_viewerCanComment)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _commentController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Add a comment...',
+                                    filled: true,
+                                    fillColor: Theme.of(
+                                      context,
+                                    ).colorScheme.surface,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                  ),
+                                  textInputAction: TextInputAction.send,
+                                  onSubmitted: (_) => _postComment(),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _postingComment
+                                  ? SizedBox(
+                                      width: 36,
+                                      height: 36,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                    )
+                                  : GestureDetector(
+                                      onTap: _postComment,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            24,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.send,
+                                          size: 18,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '${medium.commentsCount} Comments',
+                      if (_viewerCanComment) const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          children: _comments
+                              .map(
+                                (c) => _CommentTile(
+                                  key: _commentKeys[c.id],
+                                  comment: c,
+                                  viewerCanComment: _viewerCanComment,
+                                  onDelete: _viewerCanComment
+                                      ? _deleteComment
+                                      : null,
+                                  onReply: _viewerCanComment
+                                      ? _replyToComment
+                                      : null,
+                                  onPauseVideo: _pauseVideoIfNeeded,
+                                  onResumeVideo: _resumeVideoIfNeeded,
+                                  highlighted: _isCommentHighlighted(c.id),
+                                  replyKeys: _commentKeys,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                    // Watch more
+                    if (_watchMore.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          'Watch More',
                           style: TextStyle(
-                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
-                        const Spacer(),
-                        AnimatedRotation(
-                          turns: _showComments ? 0.5 : 0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            Icons.expand_more,
-                            color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_showComments) ...[
-                  const SizedBox(height: 10),
-                  if (_viewerCanComment)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _commentController,
-                              decoration: InputDecoration(
-                                hintText: 'Add a comment...',
-                                filled: true,
-                                fillColor: Theme.of(context).colorScheme.surface,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              textInputAction: TextInputAction.send,
-                              onSubmitted: (_) => _postComment(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _postingComment
-                              ? SizedBox(
-                                  width: 36,
-                                  height: 36,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                )
-                              : GestureDetector(
-                                  onTap: _postComment,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      borderRadius: BorderRadius.circular(24),
-                                    ),
-                                    child: const Icon(
-                                      Icons.send,
-                                      size: 18,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                        ],
                       ),
-                    ),
-                  if (_viewerCanComment) const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: _comments
-                          .map((c) => _CommentTile(
-                                key: _commentKeys[c.id],
-                                comment: c,
-                                viewerCanComment: _viewerCanComment,
-                                onDelete: _viewerCanComment ? _deleteComment : null,
-                                onReply: _viewerCanComment ? _replyToComment : null,
-                                onPauseVideo: _pauseVideoIfNeeded,
-                                onResumeVideo: _resumeVideoIfNeeded,
-                                highlighted: _isCommentHighlighted(c.id),
-                                replyKeys: _commentKeys,
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                ],
-                // Watch more
-                if (_watchMore.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'Watch More',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final cols = VideoCard.gridColumnCount(constraints.maxWidth - 40);
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: cols,
-                            childAspectRatio: VideoCard.gridAspectRatio(
-                              context,
-                              width: constraints.maxWidth - 40,
-                              columns: cols,
-                              spacing: 12,
-                            ),
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
-                          itemCount: _watchMore.length,
-                          itemBuilder: (context, index) {
-                            final m = _watchMore[index];
-                            return VideoCard(
-                              media: m,
-                              heroTag: 'video-thumb-${m.shortCode}',
-                              onTap: () {
-                                pushReplacementPage(
-                                  context,
-                                  builder: (_) => VideoDetailPage(
-                                    shortCode: m.shortCode,
-                                    heroTag: 'video-thumb-${m.shortCode}',
+                      const SizedBox(height: 14),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final cols = VideoCard.gridColumnCount(
+                            constraints.maxWidth - 40,
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: cols,
+                                    childAspectRatio: VideoCard.gridAspectRatio(
+                                      context,
+                                      width: constraints.maxWidth - 40,
+                                      columns: cols,
+                                      spacing: 12,
+                                    ),
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
                                   ),
+                              itemCount: _watchMore.length,
+                              itemBuilder: (context, index) {
+                                final m = _watchMore[index];
+                                return VideoCard(
+                                  media: m,
+                                  heroTag: 'video-thumb-${m.shortCode}',
+                                  onTap: () {
+                                    pushReplacementPage(
+                                      context,
+                                      builder: (_) => VideoDetailPage(
+                                        shortCode: m.shortCode,
+                                        heroTag: 'video-thumb-${m.shortCode}',
+                                      ),
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ],
-                const SizedBox(height: 20),
-              ],
-            ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
 
@@ -1730,7 +1991,14 @@ class _StatItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: iconColor ?? Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey),
+        Icon(
+          icon,
+          size: 18,
+          color:
+              iconColor ??
+              Theme.of(context).textTheme.bodyMedium?.color ??
+              Colors.grey,
+        ),
         const SizedBox(height: 4),
         if (value.isNotEmpty)
           Text(
@@ -1746,7 +2014,8 @@ class _StatItem extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+              color:
+                  Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
             ),
           ),
       ],
@@ -1819,7 +2088,9 @@ class _SaveSheetState extends State<_SaveSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+                    color: Theme.of(
+                      context,
+                    ).dividerColor.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1838,7 +2109,9 @@ class _SaveSheetState extends State<_SaveSheet> {
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 )
               else if (_showCreateForm)
@@ -1862,7 +2135,9 @@ class _SaveSheetState extends State<_SaveSheet> {
             child: Text(
               'No playlists yet',
               style: TextStyle(
-                color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey.withValues(alpha: 0.7),
+                color:
+                    Theme.of(context).textTheme.bodyMedium?.color ??
+                    Colors.grey.withValues(alpha: 0.7),
               ),
             ),
           )
@@ -1878,15 +2153,24 @@ class _SaveSheetState extends State<_SaveSheet> {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(
                     Icons.playlist_play,
-                    color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                    color:
+                        Theme.of(context).textTheme.bodyMedium?.color ??
+                        Colors.grey,
                   ),
                   title: Text(
                     p.name,
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                   subtitle: Text(
                     '${p.visibility} · ${p.itemsCount} items',
-                    style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey, fontSize: 12),
+                    style: TextStyle(
+                      color:
+                          Theme.of(context).textTheme.bodyMedium?.color ??
+                          Colors.grey,
+                      fontSize: 12,
+                    ),
                   ),
                   onTap: () => widget.onSelect(p),
                 );
@@ -1924,7 +2208,9 @@ class _SaveSheetState extends State<_SaveSheet> {
           'Visibility',
           style: TextStyle(
             fontSize: 13,
-            color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey.withValues(alpha: 0.8),
+            color:
+                Theme.of(context).textTheme.bodyMedium?.color ??
+                Colors.grey.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 4),
@@ -1958,7 +2244,10 @@ class _SaveSheetState extends State<_SaveSheet> {
                 : () async {
                     setState(() => _creating = true);
                     try {
-                      await widget.onCreate(_nameController.text.trim(), _visibility);
+                      await widget.onCreate(
+                        _nameController.text.trim(),
+                        _visibility,
+                      );
                     } finally {
                       if (mounted) setState(() => _creating = false);
                     }
@@ -1998,17 +2287,23 @@ class _VisibilityChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2) : Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: selected
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).dividerColor,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).dividerColor,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12,
-            color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -2067,9 +2362,9 @@ class _CommentTileState extends State<_CommentTile> {
     } catch (e) {
       debugPrint('reply error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to post reply')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to post reply')));
       }
       // coverage:ignore-end
     } finally {
@@ -2123,11 +2418,8 @@ class _CommentTileState extends State<_CommentTile> {
                           placeholder: (_, __) => Container(
                             color: colorScheme.surfaceContainerHighest,
                           ),
-                          errorWidget: (_, __, ___) => Icon(
-                            Icons.person,
-                            size: 16,
-                            color: mutedColor,
-                          ),
+                          errorWidget: (_, __, ___) =>
+                              Icon(Icons.person, size: 16, color: mutedColor),
                         )
                       : Container(
                           width: 32,
@@ -2156,7 +2448,8 @@ class _CommentTileState extends State<_CommentTile> {
                             widget.onPauseVideo?.call();
                             pushPage(
                               context,
-                              builder: (_) => ProfilePage(slug: comment.user.slug),
+                              builder: (_) =>
+                                  ProfilePage(slug: comment.user.slug),
                             ).then((_) {
                               if (mounted) widget.onResumeVideo?.call();
                             });
@@ -2178,7 +2471,9 @@ class _CommentTileState extends State<_CommentTile> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: colorScheme.primary.withValues(alpha: 0.15),
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.15,
+                              ),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -2207,14 +2502,12 @@ class _CommentTileState extends State<_CommentTile> {
                       children: [
                         if (widget.viewerCanComment)
                           GestureDetector(
-                            onTap: () => setState(() => _showReplyInput = !_showReplyInput),
+                            onTap: () => setState(
+                              () => _showReplyInput = !_showReplyInput,
+                            ),
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.reply,
-                                  size: 14,
-                                  color: mutedColor,
-                                ),
+                                Icon(Icons.reply, size: 14, color: mutedColor),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Reply',
@@ -2239,7 +2532,8 @@ class _CommentTileState extends State<_CommentTile> {
                                   content: const Text('This cannot be undone.'),
                                   actions: [
                                     TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
                                       child: const Text('Cancel'),
                                     ),
                                     TextButton(
@@ -2259,7 +2553,11 @@ class _CommentTileState extends State<_CommentTile> {
                                   debugPrint('delete error: $e');
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Failed to delete comment')),
+                                      const SnackBar(
+                                        content: Text(
+                                          'Failed to delete comment',
+                                        ),
+                                      ),
                                     );
                                   }
                                 }
@@ -2298,7 +2596,8 @@ class _CommentTileState extends State<_CommentTile> {
                                 decoration: InputDecoration(
                                   hintText: 'Write a reply...',
                                   filled: true,
-                                  fillColor: colorScheme.surfaceContainerHighest,
+                                  fillColor:
+                                      colorScheme.surfaceContainerHighest,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 8,
@@ -2345,17 +2644,19 @@ class _CommentTileState extends State<_CommentTile> {
                         padding: const EdgeInsets.only(left: 8, top: 8),
                         child: Column(
                           children: comment.replies
-                              .map((r) => _CommentTile(
-                                    key: widget.replyKeys?[r.id],
-                                    comment: r,
-                                    viewerCanComment: widget.viewerCanComment,
-                                    onDelete: widget.onDelete,
-                                    onReply: widget.onReply,
-                                    onPauseVideo: widget.onPauseVideo,
-                                    onResumeVideo: widget.onResumeVideo,
-                                    highlighted: widget.highlighted,
-                                    replyKeys: widget.replyKeys,
-                                  ))
+                              .map(
+                                (r) => _CommentTile(
+                                  key: widget.replyKeys?[r.id],
+                                  comment: r,
+                                  viewerCanComment: widget.viewerCanComment,
+                                  onDelete: widget.onDelete,
+                                  onReply: widget.onReply,
+                                  onPauseVideo: widget.onPauseVideo,
+                                  onResumeVideo: widget.onResumeVideo,
+                                  highlighted: widget.highlighted,
+                                  replyKeys: widget.replyKeys,
+                                ),
+                              )
                               .toList(),
                         ),
                       ),
