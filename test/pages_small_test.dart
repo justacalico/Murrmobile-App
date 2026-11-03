@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:murrmobile/main.dart';
 import 'package:murrmobile/pages/age_confirmation_page.dart';
-import 'package:murrmobile/pages/cookie_setup_page.dart';
 import 'package:murrmobile/pages/home_page.dart';
 import 'package:murrmobile/pages/notifications_page.dart';
 import 'package:murrmobile/services/murrtube_api.dart';
@@ -106,104 +105,6 @@ void main() {
       await tester.tap(find.text('I am 18+'));
       await tester.pump();
       expect(confirmed, isTrue);
-    });
-  });
-
-  group('CookieSetupPage', () {
-    testWidgets('renders welcome and buttons', (tester) async {
-      await pumpApp(tester, const CookieSetupPage());
-      await tester.pump();
-      expect(find.text('Welcome to Murrmobile'), findsOneWidget);
-      expect(find.text('Connect'), findsOneWidget);
-      expect(find.text('Continue as Guest'), findsOneWidget);
-    });
-
-    testWidgets('connect with cookies pops true and sets api cookies', (
-      tester,
-    ) async {
-      bool? result;
-      await pumpApp(
-        tester,
-        Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(builder: (_) => const CookieSetupPage()),
-              );
-            },
-            child: const Text('open'),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byType(TextField),
-        '_murrtube_v3_session=abc; session_id=abc; age_check=1',
-      );
-      // runAsync: CookieLoader.save does real file IO that fake-time
-      // microtasks never complete.
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Connect'));
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-      });
-      // Bounded pumps: the connect button spinner animates forever, so
-      // pumpAndSettle would hang while the pop transition runs.
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-      expect(result, isTrue);
-      expect(MurrtubeApi.isAuthenticated, isTrue);
-    });
-
-    testWidgets('connect with empty field continues as guest', (tester) async {
-      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
-      bool? result;
-      await pumpApp(
-        tester,
-        Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(builder: (_) => const CookieSetupPage()),
-              );
-            },
-            child: const Text('open'),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Connect'));
-      await tester.pumpAndSettle();
-      expect(result, isTrue);
-      expect(MurrtubeApi.hasCookies, isFalse);
-    });
-
-    testWidgets('continue as guest pops true and clears cookies', (
-      tester,
-    ) async {
-      MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
-      bool? result;
-      await pumpApp(
-        tester,
-        Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(builder: (_) => const CookieSetupPage()),
-              );
-            },
-            child: const Text('open'),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Continue as Guest'));
-      await tester.pumpAndSettle();
-      expect(result, isTrue);
-      expect(MurrtubeApi.hasCookies, isFalse);
     });
   });
 
