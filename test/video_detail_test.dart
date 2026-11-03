@@ -424,6 +424,32 @@ void main() {
     await unmount(tester);
   });
 
+  testWidgets('double tap seeks forward and backward', (tester) async {
+    stubVideo(
+      videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),
+    );
+    await pumpDetail(tester);
+    await settleAsync(tester);
+    await tester.pump();
+
+    final player = find.byType(VideoPlayer);
+    // Right half: +10s
+    final center = tester.getCenter(player);
+    await tester.tapAt(center + const Offset(100, 0));
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tapAt(center + const Offset(100, 0));
+    await tester.pump();
+    expect(env.videoPlayer.positions.values.last, const Duration(seconds: 10));
+
+    // Left half: -10s back to zero
+    await tester.tapAt(center - const Offset(100, 0));
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tapAt(center - const Offset(100, 0));
+    await tester.pump();
+    expect(env.videoPlayer.positions.values.last, Duration.zero);
+    await unmount(tester);
+  });
+
   testWidgets('play overlay pauses and resumes', (tester) async {
     stubVideo(
       videoProps(medium: mediaJson(hlsUrl: 'https://murrtube.net/v/abc.m3u8')),
