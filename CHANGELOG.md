@@ -2,6 +2,31 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.0 - 2026-11-03
+#### Features
+- 双击屏幕两侧快进/快退10秒 - (60d7eea) - HttpAnimations
+- 视频/主页/播放列表分享按钮 - (0bb331d) - HttpAnimations
+- 播放器倍速切换 - (c972780) - HttpAnimations
+- 视频卡片加时长角标、日期和悬停预览 - (656a259) - HttpAnimations
+- 添加自更新 AltStore 应用源 - (0b8326f) - HttpAnimations
+#### Bug Fixes
+- 修复 CI 分析告警和失效的集成测试 - (a643b5d) - HttpAnimations
+- 修复手势识别器泄漏并补充语义标签 - (a004f1e) - HttpAnimations
+- 切换标签页时显示加载而非闪空态 - (c812d57) - HttpAnimations
+- 移除无内容的 About 页面 - (f126423) - HttpAnimations
+- 请求加超时并支持失败重试 - (5d310e7) - HttpAnimations
+- 无 hls_url 时显示不可用提示 - (b37a5e0) - HttpAnimations
+- 应用切后台时暂停播放 - (ede3510) - HttpAnimations
+- 个人简介中的链接可点击 - (90e4a6b) - HttpAnimations
+- 个人主页社交链接可点击打开 - (d70e992) - HttpAnimations
+- 登录态检查改用 _murrtube_v3_session - (a70d04b) - HttpAnimations
+- 退出按钮真正退出应用 - (343ef86) - HttpAnimations
+- 修复全屏播放时导航栏仍然可见 - (3906bcb) - HttpAnimations
+- 修复被图标生成器覆盖的 Xcode 构建设置 - (01668a9) - HttpAnimations
+- 修复应用图标周围白边 - (680f85f) - HttpAnimations
+
+- - -
+
 ## v0.3.1 - 2026-09-14
 #### Bug Fixes
 - 视频卡片网格单元格过高导致底部留白 - (5c26fde) - HttpAnimations
