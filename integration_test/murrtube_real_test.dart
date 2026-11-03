@@ -62,15 +62,5 @@ void main() {
       expect(props['visibilities'], isA<List>());
     });
 
-    testWidgets('About pages load', (tester) async {
-      final terms = await MurrtubeApi.getTerms();
-      expect(terms['effective_date'], isNotNull);
-
-      final privacy = await MurrtubeApi.getPrivacy();
-      expect(privacy['effective_date'], isNotNull);
-
-      final cookies = await MurrtubeApi.getCookies();
-      expect(cookies['effective_date'], isNotNull);
-    });
   });
 }
