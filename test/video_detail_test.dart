@@ -459,12 +459,15 @@ void main() {
     await tester.pump();
     final id = env.videoPlayer.playingStates.keys.last;
     expect(env.videoPlayer.playingStates[id], isTrue);
-    // Tap the video area to pause.
+    // Tap the video area to pause; the single tap fires after the
+    // double-tap timeout.
     await tester.tap(find.byType(VideoPlayer));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(env.videoPlayer.playingStates[id], isFalse);
     await tester.tap(find.byType(VideoPlayer));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(env.videoPlayer.playingStates[id], isTrue);
     await unmount(tester);
   });
