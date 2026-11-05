@@ -34,9 +34,14 @@ class _SearchPageState extends State<SearchPage> {
   bool _suggestionsLoading = false;
   Timer? _suggestionDebounce;
 
+  int _searchGen = 0;
+  int _suggestGen = 0;
+  bool _loadingMore = false;
+
   Future<void> _search() async {
     final query = _controller.text.trim();
     if (query.isEmpty) return;
+    final gen = ++_searchGen;
     setState(() {
       _loading = true;
       _lastQuery = query;
@@ -47,6 +52,7 @@ class _SearchPageState extends State<SearchPage> {
     });
     try {
       final result = await MurrtubeApi.search(query: query, page: _currentPage);
+      if (!mounted || gen != _searchGen) return;
       setState(() {
         _media = result.media;
         _users = result.users;
@@ -56,11 +62,14 @@ class _SearchPageState extends State<SearchPage> {
     } catch (e) {
       debugPrint('SearchPage error: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted && gen == _searchGen) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   Future<void> _fetchSuggestions(String query) async {
+    final gen = ++_suggestGen;
     if (query.length < 2) {
       setState(() {
         _suggestedTags = [];
@@ -71,6 +80,7 @@ class _SearchPageState extends State<SearchPage> {
     setState(() => _suggestionsLoading = true);
     try {
       final result = await MurrtubeApi.searchSuggest(query);
+      if (!mounted || gen != _suggestGen) return;
       setState(() {
         _suggestedTags = result.tags;
         _suggestedUsers = result.users;
@@ -78,16 +88,20 @@ class _SearchPageState extends State<SearchPage> {
       });
     } catch (e) {
       debugPrint('SearchPage suggestions error: $e');
-      setState(() => _suggestionsLoading = false);
+      if (mounted && gen == _suggestGen) {
+        setState(() => _suggestionsLoading = false);
+      }
     }
   }
 
   Future<void> _loadMore() async {
-    if (_loading || !_hasMore || _lastQuery == null) return;
-    setState(() => _loading = true);
+    if (_loading || _loadingMore || !_hasMore || _lastQuery == null) return;
+    final gen = _searchGen;
+    _loadingMore = true;
     try {
       final nextPage = _currentPage + 1;
       final result = await MurrtubeApi.search(query: _lastQuery!, page: nextPage);
+      if (!mounted || gen != _searchGen) return;
       setState(() {
         _media.addAll(result.media);
         _currentPage = nextPage;
@@ -96,7 +110,7 @@ class _SearchPageState extends State<SearchPage> {
     } catch (e) {
       debugPrint('SearchPage loadMore error: $e');
     } finally {
-      setState(() => _loading = false);
+      _loadingMore = false;
     }
   }
 
@@ -114,6 +128,7 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void dispose() {
     _suggestionDebounce?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
