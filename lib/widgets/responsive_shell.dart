@@ -33,8 +33,8 @@ class ResponsiveShell extends StatefulWidget {
 class _ResponsiveShellState extends State<ResponsiveShell> {
   late int _selectedIndex;
   bool _wasLoggedIn = false;
-  List<GlobalKey<NavigatorState>> _navigatorKeys = [];
-  List<NavigatorObserver> _navObservers = [];
+  final _navigatorKeys = <String, GlobalKey<NavigatorState>>{};
+  final _navObservers = <String, NavigatorObserver>{};
 
   void _onTabNavigation() {
     // Inner pushes/pops change what back should do but don't rebuild the
@@ -84,39 +84,44 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
     return base;
   }
 
-  void _updateNavigatorKeys() {
-    final count = _items.length;
-    if (_navigatorKeys.length != count) {
-      _navigatorKeys = List.generate(count, (_) => GlobalKey<NavigatorState>());
-      _navObservers = List.generate(count, (_) => _NavObserver(_onTabNavigation));
-    }
-  }
+  GlobalKey<NavigatorState> _keyFor(NavItem item) =>
+      _navigatorKeys.putIfAbsent(item.label, () => GlobalKey<NavigatorState>());
+
+  NavigatorObserver _observerFor(NavItem item) =>
+      _navObservers.putIfAbsent(item.label, () => _NavObserver(_onTabNavigation));
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
     _wasLoggedIn = MurrtubeApi.isAuthenticated;
-    _updateNavigatorKeys();
+    MurrtubeApi.authVersion.addListener(_onAuthChanged);
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void dispose() {
+    MurrtubeApi.authVersion.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
     final nowLoggedIn = MurrtubeApi.isAuthenticated;
-    if (nowLoggedIn != _wasLoggedIn) {
-      _wasLoggedIn = nowLoggedIn;
-      if (_selectedIndex >= _items.length) {
-        _selectedIndex = 0;
-      }
-      _updateNavigatorKeys();
-      setState(() {});
-    }
+    if (!mounted || nowLoggedIn == _wasLoggedIn) return;
+    _wasLoggedIn = nowLoggedIn;
+    // Keys are per-label so only the Upload/Activity slots are created or
+    // dropped; Home/Search/Settings keep their stacks.
+    final selectedLabel =
+        _items[_selectedIndex.clamp(0, _items.length - 1)].label;
+    setState(() {
+      _selectedIndex =
+          _items.indexWhere((i) => i.label == selectedLabel);
+      if (_selectedIndex == -1) _selectedIndex = 0;
+    });
   }
 
   void _onItemTapped(int index) {
     if (index == _selectedIndex) {
-      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      _keyFor(_items[index]).currentState?.popUntil((route) => route.isFirst);
     }
     setState(() => _selectedIndex = index);
   }
@@ -125,33 +130,36 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
     // A fullscreen page blocks its route's pop so back exits fullscreen
     // first; from the outside the inner navigator reports it cannot pop.
     if (fullscreenMode.value) return false;
-    final navigator = _navigatorKeys[_selectedIndex].currentState;
+    final items = _items;
+    if (items.isEmpty) return true;
+    final navigator =
+        _keyFor(items[_selectedIndex.clamp(0, items.length - 1)]).currentState;
     return navigator == null || !navigator.canPop();
   }
 
-  Widget _buildTabNavigator(int index, Widget page) {
+  Widget _buildTabNavigator(NavItem item) {
     return Navigator(
-      key: _navigatorKeys[index],
-      observers: [_navObservers[index]],
+      key: _keyFor(item),
+      observers: [_observerFor(item)],
       onGenerateRoute: (settings) => AppPageRoute(
-        builder: (_) => page,
+        builder: (_) => item.page,
         settings: settings,
       ),
     );
   }
 
   Widget _buildBody(bool fullscreen) {
+    final items = _items;
+    final index = _selectedIndex.clamp(0, items.length - 1);
     final tabs = IndexedStack(
-      index: _selectedIndex,
-      children: _items.asMap().entries.map((e) {
-        return _buildTabNavigator(e.key, e.value.page);
-      }).toList(),
+      index: index,
+      children: items.map(_buildTabNavigator).toList(),
     );
     return PopScope(
       canPop: _canPopRoot(),
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
-          _navigatorKeys[_selectedIndex].currentState?.maybePop();
+          _keyFor(items[index]).currentState?.maybePop();
         }
       },
       child: fullscreen ? tabs : SafeArea(child: tabs),
@@ -166,19 +174,17 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
     return ValueListenableBuilder<bool>(
       valueListenable: fullscreenMode,
       builder: (context, fullscreen, _) {
-        // Rebuilds that bypass didChangeDependencies (like the fullscreen
-        // listener) can leave the index past a shrunken tab list.
-        if (_selectedIndex >= _items.length) {
+        final items = _items;
+        if (_selectedIndex >= items.length) {
           _selectedIndex = 0;
-          _updateNavigatorKeys();
         }
         if (isDesktop) {
           return _DesktopLayout(
-            items: _items,
+            items: items,
             selectedIndex: _selectedIndex,
             onItemTapped: _onItemTapped,
-            navigatorKeys: _navigatorKeys,
-            navObservers: _navObservers,
+            navigatorKeys: items.map(_keyFor).toList(),
+            navObservers: items.map(_observerFor).toList(),
             chromeHidden: fullscreen,
           );
         }
@@ -190,7 +196,7 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
               : NavigationBar(
                   selectedIndex: _selectedIndex,
                   onDestinationSelected: _onItemTapped,
-                  destinations: _items
+                  destinations: items
                       .map(
                         (item) => NavigationDestination(
                           icon: Icon(item.icon),
@@ -229,76 +235,81 @@ class _DesktopLayout extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      body: Row(
-        children: [
-          if (!chromeHidden) ...[
-            NavigationRail(
-              extended: true,
-              minExtendedWidth: 220,
-              selectedIndex: selectedIndex,
-              onDestinationSelected: onItemTapped,
-              leading: Padding(
-                padding: const EdgeInsets.only(top: 16, bottom: 8),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.asset(
-                        'assets/icon.png',
-                        width: 36,
-                        height: 36,
-                        fit: BoxFit.cover,
+      body: SafeArea(
+        child: Row(
+          children: [
+            if (!chromeHidden) ...[
+              NavigationRail(
+                extended: MediaQuery.sizeOf(context).width >= 1200,
+                minExtendedWidth: 220,
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onItemTapped,
+                leading: Padding(
+                  padding: const EdgeInsets.only(top: 16, bottom: 8),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/icon.png',
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                          semanticLabel: 'Murrmobile logo',
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Murrmobile',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
+                      if (MediaQuery.sizeOf(context).width >= 1200) ...[
+                        const SizedBox(width: 12),
+                        Text(
+                          'Murrmobile',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                destinations: items
+                    .map(
+                      (item) => NavigationRailDestination(
+                        icon: Icon(item.icon),
+                        selectedIcon: Icon(item.activeIcon),
+                        label: Text(item.label),
                       ),
-                    ),
-                  ],
+                    )
+                    .toList(),
+              ),
+              const VerticalDivider(width: 1, thickness: 1),
+            ],
+            Expanded(
+              child: PopScope(
+                canPop: !chromeHidden &&
+                    navigatorKeys[selectedIndex].currentState?.canPop() != true,
+                onPopInvokedWithResult: (didPop, _) {
+                  if (!didPop) {
+                    navigatorKeys[selectedIndex].currentState?.maybePop();
+                  }
+                },
+                child: IndexedStack(
+                  index: selectedIndex,
+                  children: items.asMap().entries.map((e) {
+                    return Navigator(
+                      key: navigatorKeys[e.key],
+                      observers: [navObservers[e.key]],
+                      onGenerateRoute: (settings) => AppPageRoute(
+                        builder: (_) => e.value.page,
+                        settings: settings,
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
-              destinations: items
-                  .map(
-                    (item) => NavigationRailDestination(
-                      icon: Icon(item.icon),
-                      selectedIcon: Icon(item.activeIcon),
-                      label: Text(item.label),
-                    ),
-                  )
-                  .toList(),
             ),
-            const VerticalDivider(width: 1, thickness: 1),
           ],
-          Expanded(
-            child: PopScope(
-              canPop: !chromeHidden &&
-                  navigatorKeys[selectedIndex].currentState?.canPop() != true,
-              onPopInvokedWithResult: (didPop, _) {
-                if (!didPop) {
-                  navigatorKeys[selectedIndex].currentState?.maybePop();
-                }
-              },
-              child: IndexedStack(
-                index: selectedIndex,
-                children: items.asMap().entries.map((e) {
-                  return Navigator(
-                    key: navigatorKeys[e.key],
-                    observers: [navObservers[e.key]],
-                    onGenerateRoute: (settings) => AppPageRoute(
-                      builder: (_) => e.value.page,
-                      settings: settings,
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

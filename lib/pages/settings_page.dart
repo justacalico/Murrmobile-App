@@ -34,6 +34,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _wasLoggedIn = MurrtubeApi.isAuthenticated;
+    MurrtubeApi.authVersion.addListener(_onAuthChanged);
     _loadLocal();
     _load();
   }
@@ -58,18 +59,16 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void _onAuthChanged() {
     final nowLoggedIn = MurrtubeApi.isAuthenticated;
-    if (nowLoggedIn != _wasLoggedIn) {
-      _wasLoggedIn = nowLoggedIn;
-      _load();
-    }
+    if (!mounted || nowLoggedIn == _wasLoggedIn) return;
+    _wasLoggedIn = nowLoggedIn;
+    _load();
   }
 
   @override
   void dispose() {
+    MurrtubeApi.authVersion.removeListener(_onAuthChanged);
     _importController.dispose();
     super.dispose();
   }
