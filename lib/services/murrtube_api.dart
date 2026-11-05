@@ -210,13 +210,13 @@ class MurrtubeApi {
     bool authDenied() =>
         response.statusCode == 401 || response.statusCode == 403;
 
-    // 409 = Inertia version mismatch; an HTML body means we got a full page
-    // (or the age gate) instead of JSON. Re-extract the version and retry,
-    // up to a few attempts since the '1' fallback may itself need a second
-    // 409 to converge.
+    // 409 = Inertia version mismatch; a non-JSON body means we got a full
+    // page (age gate, sign-in, error page) instead of JSON. Re-extract the
+    // version and retry, up to a few attempts since the '1' fallback may
+    // itself need a second 409 to converge.
     for (var attempt = 0;
         attempt < 3 &&
-            (response.statusCode != 200 || !body.startsWith('{')) &&
+            (response.statusCode == 409 || !body.startsWith('{')) &&
             !authDenied();
         attempt++) {
       netLog('Attempt ${attempt + 1} failed (${response.statusCode}), retrying...');
