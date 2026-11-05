@@ -32,21 +32,30 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _currentTab = widget.tab;
     _wasLoggedIn = MurrtubeApi.isAuthenticated;
+    MurrtubeApi.authVersion.addListener(_onAuthChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void dispose() {
+    MurrtubeApi.authVersion.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  void _onAuthChanged() {
     final nowLoggedIn = MurrtubeApi.isAuthenticated;
-    if (nowLoggedIn != _wasLoggedIn) {
+    if (!mounted || nowLoggedIn == _wasLoggedIn) return;
+    setState(() {
       _wasLoggedIn = nowLoggedIn;
       if (!nowLoggedIn && _currentTab == 'subscriptions') {
         _currentTab = 'trending';
       }
       _currentPage = 1;
-      _load();
-    }
+      _media = [];
+      _announcements = [];
+      _hasMore = true;
+    });
+    _load();
   }
 
   Future<void> _load() async {
@@ -111,9 +120,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // didChangeDependencies re-checks auth on any inherited change, so keep
-    // a MediaQuery dependency for view resizes to reach it.
-    MediaQuery.sizeOf(context);
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {

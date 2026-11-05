@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../utils/cookie_loader.dart';
 import '../models/media.dart';
@@ -75,15 +76,23 @@ class MurrtubeApi {
   }
   static String? currentUserSlug;
 
+  /// Bumped whenever the auth-relevant cookie state changes (login, logout,
+  /// detected session expiry). Widgets listen to this instead of polling
+  /// [isAuthenticated].
+  static final authVersion = ValueNotifier<int>(0);
+
   static void setCookies(String cookies) {
     _cookieString = cookies;
     currentUserSlug = null;
+    authVersion.value++;
   }
 
   static void clearCookies() {
+    if (_cookieString == null) return;
     _cookieString = null;
     _inertiaVersion = null;
     currentUserSlug = null;
+    authVersion.value++;
   }
 
   static String? _inertiaVersion;
