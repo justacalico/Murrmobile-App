@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:murrmobile/services/murrtube_api.dart';
+
 /// A captured HTTP request made through [FakeHttpClient].
 class FakeRequest {
   final String method;
@@ -163,6 +165,7 @@ class FakeServer {
 FakeServer installFakeHttp([FakeServer? server]) {
   final s = server ?? FakeServer();
   HttpOverrides.global = _FakeHttpOverrides(s);
+  MurrtubeApi.resetHttpClient();
   return s;
 }
 

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../utils/cookie_loader.dart';
 import '../models/media.dart';
 import '../models/comment.dart';
 import '../models/pagination.dart';
@@ -32,21 +34,30 @@ class InertiaPage {
 }
 
 class _TimeoutClient extends http.BaseClient {
+  final http.Client _inner = http.Client();
+
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final client = http.Client();
-    try {
-      return await client.send(request).timeout(MurrtubeApi.requestTimeout);
-    } finally {
-      client.close();
-    }
-  }
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request).timeout(MurrtubeApi.requestTimeout);
+
+  @override
+  void close() => _inner.close();
 }
 
 class MurrtubeApi {
   static const String baseUrl = 'https://murrtube.net';
+  static const String userAgent =
+      'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36';
   static Duration requestTimeout = const Duration(seconds: 15);
-  static final http.Client _client = _TimeoutClient();
+  static http.Client _client = _TimeoutClient();
+
+  /// Rebuilds the underlying HTTP client. Tests install a fresh fake backend
+  /// per test, so the client has to be re-created to pick it up.
+  static void resetHttpClient() {
+    _client.close();
+    _client = _TimeoutClient();
+  }
   static String? _cookieString;
 
   static String? get cookies => _cookieString;
@@ -70,6 +81,10 @@ class MurrtubeApi {
 
   static String? _inertiaVersion;
 
+  // A comma only starts a new cookie when what follows looks like
+  // `name=`; commas inside Expires dates ("Thu, 01 Jan 1970") don't.
+  static final RegExp _cookieSplit = RegExp(r',\s*(?=[^;,\s]+=)');
+
   static void _updateCookiesFromResponse(http.Response response) {
     final setCookies = response.headers['set-cookie'];
     if (setCookies == null) return;
@@ -81,19 +96,57 @@ class MurrtubeApi {
         if (i != -1) jar[part.substring(0, i)] = part.substring(i + 1);
       }
     }
-    for (final raw in setCookies.split(',')) {
-      final c = raw.split(';').first.trim();
-      final i = c.indexOf('=');
-      if (i != -1) jar[c.substring(0, i)] = c.substring(i + 1);
+    for (final raw in setCookies.split(_cookieSplit)) {
+      final semi = raw.indexOf(';');
+      final pair = (semi == -1 ? raw : raw.substring(0, semi)).trim();
+      final i = pair.indexOf('=');
+      if (i == -1) continue;
+      final name = pair.substring(0, i).trim();
+      if (name.isEmpty) continue;
+      final value = pair.substring(i + 1).trim();
+      final attrs = semi == -1 ? '' : raw.substring(semi);
+      if (value.isEmpty || _cookieAttrsExpired(attrs)) {
+        jar.remove(name);
+      } else {
+        jar[name] = value;
+      }
     }
-    _cookieString = jar.entries.map((e) => '${e.key}=${e.value}').join('; ');
+    final joined = jar.entries.map((e) => '${e.key}=${e.value}').join('; ');
+    if (joined == _cookieString) return;
+    _cookieString = joined;
+    unawaited(
+      CookieLoader.save(joined).catchError((Object _) {}),
+    );
     netLog('Updated cookies from response. Now cookies set? ${hasCookies}');
+  }
+
+  static bool _cookieAttrsExpired(String attrs) {
+    final maxAge = RegExp(
+      'max-age\\s*=\\s*"?(-?\\d+)"?',
+      caseSensitive: false,
+    ).firstMatch(attrs);
+    if (maxAge != null && (int.tryParse(maxAge.group(1)!) ?? 1) <= 0) {
+      return true;
+    }
+    final expires = RegExp(
+      'expires\\s*=\\s*"?([^";]+)"?',
+      caseSensitive: false,
+    ).firstMatch(attrs);
+    if (expires != null) {
+      try {
+        if (!HttpDate.parse(expires.group(1)!.trim()).isAfter(
+          DateTime.now(),
+        )) {
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
   }
 
   static Map<String, String> _headers({String? inertiaVersion, String? homeTab}) {
     final h = {
-      'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'User-Agent': userAgent,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
       'X-Inertia': 'true',
@@ -153,8 +206,7 @@ class MurrtubeApi {
         final rootResp = await _client.get(
           Uri.parse(baseUrl),
           headers: {
-            'User-Agent':
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+            'User-Agent': userAgent,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Referer': baseUrl,
@@ -232,8 +284,7 @@ class MurrtubeApi {
       ..fields['authenticity_token'] = csrfToken;
 
     request.headers.addAll({
-      'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'User-Agent': userAgent,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
       'Referer': baseUrl,
@@ -326,7 +377,8 @@ class MurrtubeApi {
     String tab,
     User? currentUser,
   })> getHome({String tab = 'trending', int page = 1}) async {
-    final path = page == 1 ? '/?tab=$tab' : '/?tab=$tab&page=$page';
+    final q = Uri(queryParameters: {'tab': tab, if (page != 1) 'page': '$page'}).query;
+    final path = '/?$q';
     final inertia = await _get(path, homeTab: tab);
     final props = inertia.props;
     final mediaList = (props['media'] as List<dynamic>)
@@ -360,7 +412,7 @@ class MurrtubeApi {
     bool viewerCanComment,
     bool viewerCanLike,
   })> getVideo(String shortCode) async {
-    final inertia = await _get('/v/$shortCode');
+    final inertia = await _get('/v/${Uri.encodeComponent(shortCode)}');
     final props = inertia.props;
     final medium = Media.fromJson(props['medium'] as Map<String, dynamic>);
     final comments = (props['comments'] as List<dynamic>)
@@ -423,8 +475,7 @@ class MurrtubeApi {
     final response = await _client.get(
       Uri.parse('$baseUrl/search/suggest?q=$query'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         if (_cookieString != null) 'Cookie': _cookieString!,
@@ -492,8 +543,8 @@ class MurrtubeApi {
     String? blueskyUrl,
     String? onlyfansUrl,
   })> getUserProfile(String slug, {int page = 1, String tab = 'videos'}) async {
-    var path = '/$slug';
-    if (tab != 'videos') path += '?tab=$tab';
+    var path = '/${Uri.encodeComponent(slug)}';
+    if (tab != 'videos') path += '?tab=${Uri.encodeComponent(tab)}';
     if (page != 1) path += path.contains('?') ? '&page=$page' : '?page=$page';
     final inertia = await _get(path);
     final props = inertia.props;
@@ -571,10 +622,9 @@ class MurrtubeApi {
   static Future<void> blockUser(String slug) async {
     final token = await _fetchCsrfToken();
     final response = await _client.put(
-      Uri.parse('$baseUrl/users/$slug/block'),
+      Uri.parse('$baseUrl/users/${Uri.encodeComponent(slug)}/block'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         'Origin': baseUrl,
@@ -593,10 +643,9 @@ class MurrtubeApi {
   static Future<void> unblockUser(String slug) async {
     final token = await _fetchCsrfToken();
     final response = await _client.put(
-      Uri.parse('$baseUrl/users/$slug/unblock'),
+      Uri.parse('$baseUrl/users/${Uri.encodeComponent(slug)}/unblock'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         'Origin': baseUrl,
@@ -615,10 +664,9 @@ class MurrtubeApi {
   static Future<void> subscribeToUser(String slug) async {
     final token = await _fetchCsrfToken();
     final response = await _client.post(
-      Uri.parse('$baseUrl/users/$slug/follow'),
+      Uri.parse('$baseUrl/users/${Uri.encodeComponent(slug)}/follow'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         'Origin': baseUrl,
@@ -636,10 +684,9 @@ class MurrtubeApi {
   static Future<void> unsubscribeFromUser(String slug) async {
     final token = await _fetchCsrfToken();
     final response = await _client.post(
-      Uri.parse('$baseUrl/users/$slug/unfollow'),
+      Uri.parse('$baseUrl/users/${Uri.encodeComponent(slug)}/unfollow'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         'Origin': baseUrl,
@@ -672,8 +719,7 @@ class MurrtubeApi {
     final response = await _client.get(
       Uri.parse(baseUrl),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
         'Referer': baseUrl,
@@ -696,8 +742,7 @@ class MurrtubeApi {
     final response = await _client.post(
       Uri.parse('$baseUrl/likes'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
         'Referer': baseUrl,
@@ -721,8 +766,7 @@ class MurrtubeApi {
     final response = await _client.post(
       Uri.parse('$baseUrl/comments'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
         'Referer': baseUrl,
@@ -746,10 +790,9 @@ class MurrtubeApi {
   static Future<void> deleteComment(String commentId) async {
     final token = await _fetchCsrfToken();
     final response = await _client.delete(
-      Uri.parse('$baseUrl/comments/$commentId'),
+      Uri.parse('$baseUrl/comments/${Uri.encodeComponent(commentId)}'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         'Origin': baseUrl,
@@ -770,8 +813,7 @@ class MurrtubeApi {
     final response = await _client.post(
       Uri.parse('$baseUrl/comments'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
         'Referer': baseUrl,
@@ -798,8 +840,7 @@ class MurrtubeApi {
     final response = await _client.delete(
       Uri.parse('$baseUrl/likes/$mediumId'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         'Origin': baseUrl,
@@ -822,12 +863,11 @@ class MurrtubeApi {
     final response = await _client.get(
       Uri.parse('$baseUrl/playlists/mine'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Referer': baseUrl,
         'x-csrf-token': token,
-        'Cookie': _cookieString!,
+        if (_cookieString != null) 'Cookie': _cookieString!,
       },
     );
     _updateCookiesFromResponse(response);
@@ -856,14 +896,13 @@ class MurrtubeApi {
       request.fields['playlist[description]'] = description;
     }
     request.headers.addAll({
-      'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'User-Agent': userAgent,
       'Accept': 'application/json',
       'Referer': baseUrl,
       'Origin': baseUrl,
       'X-Requested-With': 'XMLHttpRequest',
       'x-csrf-token': token,
-      'Cookie': _cookieString!,
+      if (_cookieString != null) 'Cookie': _cookieString!,
     });
 
     final streamedResponse = await _client.send(request);
@@ -892,7 +931,7 @@ class MurrtubeApi {
     User? user,
     bool isOwner,
   })> getPlaylist(String userSlug, String playlistSlug, {int page = 1}) async {
-    var path = '/$userSlug/p/$playlistSlug';
+    var path = '/${Uri.encodeComponent(userSlug)}/p/${Uri.encodeComponent(playlistSlug)}';
     if (page != 1) path += '?page=$page';
     final inertia = await _get(path);
     final props = inertia.props;
@@ -924,19 +963,18 @@ class MurrtubeApi {
     final token = await _fetchCsrfToken();
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('$baseUrl/playlists/$playlistId/items'),
+      Uri.parse('$baseUrl/playlists/${Uri.encodeComponent(playlistId)}/items'),
     )
       ..fields['short_code'] = shortCode
       ..fields['medium_id'] = mediumId;
     request.headers.addAll({
-      'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'User-Agent': userAgent,
       'Accept': 'application/json',
       'Referer': baseUrl,
       'Origin': baseUrl,
       'X-Requested-With': 'XMLHttpRequest',
       'x-csrf-token': token,
-      'Cookie': _cookieString!,
+      if (_cookieString != null) 'Cookie': _cookieString!,
     });
 
     final streamedResponse = await _client.send(request);
@@ -959,8 +997,7 @@ class MurrtubeApi {
     final response = await _client.post(
       Uri.parse('$baseUrl/tag_edits'),
       headers: {
-        'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Referer': baseUrl,
