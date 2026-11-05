@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.3 - 2026-11-05
+#### Bug Fixes
+- 修复分页重复请求与过期响应覆盖 - (33ae3e4) - HttpAnimations
+
+- - -
+
 ## v0.4.2 - 2026-11-05
 #### Bug Fixes
 - 登录状态变化即时响应，切换不再清空各标签页 - (3dd9b3d) - HttpAnimations
