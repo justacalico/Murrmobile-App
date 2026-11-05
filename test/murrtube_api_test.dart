@@ -99,6 +99,76 @@ void main() {
       await MurrtubeApi.getHome(page: 2);
       expect(MurrtubeApi.isAuthenticated, isTrue);
     });
+
+    test('set-cookie split keeps cookies after an Expires date', () async {
+      server.onGet(
+        '/',
+        (req) => FakeResponse.inertia(
+          'Home',
+          {
+            'media': const [],
+            'pagination': paginationJson(),
+            'announcements': const [],
+          },
+          headers: {
+            'set-cookie': [
+              'XSRF-TOKEN=tok; Expires=Thu, 01 Jan 2030 00:00:00 GMT; Path=/, '
+              '_murrtube_v3_session=xyz; Path=/; HttpOnly',
+            ],
+          },
+        ),
+        matchQuery: (uri) => uri.queryParameters.containsKey('tab'),
+      );
+      await MurrtubeApi.getHome();
+      expect(MurrtubeApi.isAuthenticated, isTrue);
+      expect(MurrtubeApi.cookies, contains('XSRF-TOKEN=tok'));
+      expect(MurrtubeApi.cookies, contains('_murrtube_v3_session=xyz'));
+    });
+
+    test('expired and emptied cookies are dropped from the jar', () async {
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc; keep=1');
+      server.onGet(
+        '/',
+        (req) => FakeResponse.inertia(
+          'Home',
+          {
+            'media': const [],
+            'pagination': paginationJson(),
+            'announcements': const [],
+          },
+          headers: {
+            'set-cookie': [
+              '_murrtube_v3_session=; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/, '
+              'keep=1; Max-Age=0; Path=/',
+            ],
+          },
+        ),
+        matchQuery: (uri) => uri.queryParameters.containsKey('tab'),
+      );
+      await MurrtubeApi.getHome();
+      expect(MurrtubeApi.isAuthenticated, isFalse);
+      expect(MurrtubeApi.cookies, isNot(contains('keep=1')));
+    });
+  });
+
+  group('request urls', () {
+    test('path params are percent-encoded', () async {
+      stubRoot();
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc');
+      server.onPut('/users/we%20ird/block', (req) => FakeResponse.json({}));
+      await MurrtubeApi.blockUser('we ird');
+      expect(server.requests.last.uri.path, '/users/we%20ird/block');
+    });
+
+    test('authed calls without a jar send no Cookie header', () async {
+      stubRoot();
+      server.onGet('/playlists/mine', (req) {
+        expect(req.header('cookie'), isNull);
+        return FakeResponse.json({'playlists': const []});
+      });
+      final playlists = await MurrtubeApi.getMyPlaylists();
+      expect(playlists, isEmpty);
+    });
   });
 
   group('_get retry logic', () {

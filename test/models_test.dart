@@ -208,8 +208,21 @@ void main() {
       expect(p.page, 2);
       expect(p.pages, 5);
       expect(p.count, 100);
-      expect(p.next, '/?page=3');
-      expect(p.prev, '/?page=1');
+      expect(p.next, 3);
+      expect(p.prev, 1);
+    });
+
+    test('normalizes next/prev to page numbers', () {
+      int? nextOf(dynamic v) =>
+          Pagination.fromJson(paginationJson(next: v)).next;
+      expect(nextOf(3), 3);
+      expect(nextOf('3'), 3);
+      expect(nextOf('/?page=3'), 3);
+      expect(nextOf('/search?q=x&page=7'), 7);
+      expect(nextOf(null), isNull);
+      expect(nextOf(false), isNull);
+      expect(nextOf(''), isNull);
+      expect(nextOf('/nope'), isNull);
     });
 
     test('toJson round-trips', () {

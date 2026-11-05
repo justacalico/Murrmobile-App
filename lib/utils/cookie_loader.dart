@@ -7,11 +7,19 @@ class CookieLoader {
 
   static String? parse(String content) {
     final pairs = <String>[];
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     for (final line in content.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty || trimmed.startsWith('#')) continue;
+      var trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      if (trimmed.startsWith('#HttpOnly_')) {
+        trimmed = trimmed.substring('#HttpOnly_'.length);
+      } else if (trimmed.startsWith('#')) {
+        continue;
+      }
       final parts = trimmed.split('\t');
       if (parts.length >= 7) {
+        final expiry = int.tryParse(parts[4]);
+        if (expiry != null && expiry != 0 && expiry < now) continue;
         pairs.add('${parts[5]}=${parts[6]}');
       }
     }

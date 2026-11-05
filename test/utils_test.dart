@@ -48,6 +48,20 @@ void main() {
       expect(CookieLoader.parse('# just a comment\n'), isNull);
     });
 
+    test('parse keeps HttpOnly cookies', () {
+      const content =
+          '# Netscape HTTP Cookie File\n'
+          '#HttpOnly_murrtube.net\tTRUE\t/\tTRUE\t9999999999\t_murrtube_v3_session\tsecret\n';
+      expect(CookieLoader.parse(content), '_murrtube_v3_session=secret');
+    });
+
+    test('parse skips expired cookies', () {
+      const content =
+          'murrtube.net\tTRUE\t/\tTRUE\t1\tdead\tgone\n'
+          'murrtube.net\tTRUE\t/\tTRUE\t9999999999\tlive\there\n';
+      expect(CookieLoader.parse(content), 'live=here');
+    });
+
     test('save, load, and clear round-trip through documents dir', () async {
       final env = installTestEnv();
       final docs = (await getApplicationDocumentsDirectory()).path;
