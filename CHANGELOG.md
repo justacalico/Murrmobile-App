@@ -2,6 +2,14 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.2 - 2026-11-05
+#### Bug Fixes
+- 登录状态变化即时响应，切换不再清空各标签页 - (3dd9b3d) - HttpAnimations
+- 只对 409 或非 JSON 响应重试，避免吞掉真实错误 - (6a3333d) - HttpAnimations
+- 修复 API 容错解析与会话过期检测 - (216a2da) - HttpAnimations
+
+- - -
+
 ## v0.4.1 - 2026-11-05
 #### Bug Fixes
 - 修复 Cookie 处理与会话持久化 - (1e84895) - HttpAnimations
