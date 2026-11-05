@@ -171,6 +171,83 @@ void main() {
     });
   });
 
+  group('tolerant parsing', () {
+    test('one malformed item is skipped, not fatal', () async {
+      server.onGet(
+        '/',
+        (req) => FakeResponse.inertia('Home', {
+          'media': [mediaJson(), {'id': 42}, mediaJson(title: 'Good')],
+          'pagination': paginationJson(),
+          'announcements': const [],
+          'tab': 'trending',
+        }),
+        matchQuery: (uri) => uri.queryParameters.containsKey('tab'),
+      );
+      final result = await MurrtubeApi.getHome();
+      expect(result.media.length, 2);
+      expect(result.media.last.title, 'Good');
+    });
+
+    test('missing pagination prop falls back to a single page', () async {
+      server.onGet(
+        '/',
+        (req) => FakeResponse.inertia('Home', {
+          'media': [mediaJson()],
+          'announcements': const [],
+          'tab': 'trending',
+        }),
+        matchQuery: (uri) => uri.queryParameters.containsKey('tab'),
+      );
+      final result = await MurrtubeApi.getHome();
+      expect(result.pagination.next, isNull);
+      expect(result.media, hasLength(1));
+    });
+  });
+
+  group('session expiry', () {
+    test('401 with a session clears the jar and throws', () async {
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc');
+      server.onGet(
+        '/',
+        (req) => FakeResponse.json({'error': 'unauthorized'}, status: 401),
+        matchQuery: (uri) => uri.queryParameters.containsKey('tab'),
+      );
+      await expectLater(
+        MurrtubeApi.getHome(),
+        throwsA(isA<SessionExpiredException>()),
+      );
+      expect(MurrtubeApi.isAuthenticated, isFalse);
+    });
+
+    test('signOut hits the endpoint and always clears the jar', () async {
+      stubRoot();
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc');
+      server.onDelete('/sign_out', (req) => FakeResponse.json({}));
+      await MurrtubeApi.signOut();
+      expect(MurrtubeApi.isAuthenticated, isFalse);
+      expect(
+        server.requests.any((r) => r.uri.path == '/sign_out'),
+        isTrue,
+      );
+    });
+
+    test('signOut still clears when the endpoint 404s', () async {
+      stubRoot();
+      MurrtubeApi.setCookies('_murrtube_v3_session=abc');
+      server.onDelete('/sign_out', (req) => FakeResponse.json({}, status: 404));
+      server.onDelete(
+        '/users/sign_out',
+        (req) => FakeResponse.json({}),
+      );
+      await MurrtubeApi.signOut();
+      expect(MurrtubeApi.isAuthenticated, isFalse);
+      expect(
+        server.requests.any((r) => r.uri.path == '/users/sign_out'),
+        isTrue,
+      );
+    });
+  });
+
   group('_get retry logic', () {
     test('parses JSON on first try when it is JSON', () async {
       stubRoot();

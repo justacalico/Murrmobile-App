@@ -13,6 +13,13 @@ import '../models/playlist.dart';
 import '../models/tag.dart';
 import '../utils/logger.dart';
 
+class SessionExpiredException implements Exception {
+  const SessionExpiredException();
+
+  @override
+  String toString() => 'Session expired: please sign in again';
+}
+
 class InertiaPage {
   final String component;
   final Map<String, dynamic> props;
@@ -178,58 +185,53 @@ class MurrtubeApi {
     }).join('; ');
   }
 
+  static Map<String, String> _htmlHeaders() => {
+        'User-Agent': userAgent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': baseUrl,
+        if (_cookieString != null) 'Cookie': _cookieString!,
+      };
+
   static Future<InertiaPage> _get(String path, {String? homeTab}) async {
     final uri = Uri.parse('$baseUrl$path');
     netLog('');
     netLog('=== MurrtubeApi._get $path ===');
     netLog('cookies set? ${hasCookies}');
 
-    // Try with cached version first
     var response = await _client.get(
       uri,
       headers: _headers(inertiaVersion: _inertiaVersion, homeTab: homeTab),
     );
-
     var body = utf8.decode(response.bodyBytes);
     _updateCookiesFromResponse(response);
     netLog('First response status: ${response.statusCode}');
-    netLog('First response body starts with: ${body.isNotEmpty ? body.substring(0, body.length.clamp(0, 60)) : "(empty)"}');
 
-    // 409 = Inertia version mismatch. Body may be empty, so fetch root page
-    // without Inertia headers to get HTML and extract the version.
-    if (response.statusCode == 409 || !body.startsWith('{')) {
-      netLog('Need to extract Inertia version and retry...');
+    bool authDenied() =>
+        response.statusCode == 401 || response.statusCode == 403;
 
-      // If body is empty (common for 409), fetch root page normally
+    // 409 = Inertia version mismatch; a non-JSON body means we got a full
+    // page (age gate, sign-in, error page) instead of JSON. Re-extract the
+    // version and retry, up to a few attempts since the '1' fallback may
+    // itself need a second 409 to converge.
+    for (var attempt = 0;
+        attempt < 3 &&
+            (response.statusCode == 409 || !body.startsWith('{')) &&
+            !authDenied();
+        attempt++) {
+      netLog('Attempt ${attempt + 1} failed (${response.statusCode}), retrying...');
       if (body.isEmpty) {
         netLog('Body empty, fetching root page without Inertia headers...');
         final rootResp = await _client.get(
           Uri.parse(baseUrl),
-          headers: {
-            'User-Agent': userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': baseUrl,
-            if (_cookieString != null) 'Cookie': _cookieString!,
-          },
+          headers: _htmlHeaders(),
         );
         _updateCookiesFromResponse(rootResp);
-        final rootBody = utf8.decode(rootResp.bodyBytes);
-        netLog('Root page status: ${rootResp.statusCode}');
-        netLog('Root page body starts with: ${rootBody.isNotEmpty ? rootBody.substring(0, rootBody.length.clamp(0, 60)) : "(empty)"}');
-        _inertiaVersion = _extractInertiaVersion(rootBody);
-        // Check if age check is needed and bypass it
-        await _maybeBypassAgeCheck(rootBody);
-      } else {
-        _inertiaVersion = _extractInertiaVersion(body);
-        await _maybeBypassAgeCheck(body);
+        body = utf8.decode(rootResp.bodyBytes);
       }
-
-      if (_inertiaVersion == null) {
-        netLog('Version extraction failed, trying default version 1');
-        _inertiaVersion = '1';
-      }
+      _inertiaVersion = _extractInertiaVersion(body) ?? '1';
       netLog('Extracted version: $_inertiaVersion');
+      await _maybeBypassAgeCheck(body);
       response = await _client.get(
         uri,
         headers: _headers(inertiaVersion: _inertiaVersion, homeTab: homeTab),
@@ -237,22 +239,53 @@ class MurrtubeApi {
       _updateCookiesFromResponse(response);
       body = utf8.decode(response.bodyBytes);
       netLog('Retry response status: ${response.statusCode}');
-      netLog('Retry response body starts with: ${body.isNotEmpty ? body.substring(0, body.length.clamp(0, 2000)) : "(empty)"}');
+      if (authDenied()) break;
     }
 
     if (response.statusCode != 200) {
       netLog('Final status code not 200, throwing.');
+      if (isAuthenticated &&
+          (response.statusCode == 401 || response.statusCode == 403)) {
+        clearCookies();
+        throw const SessionExpiredException();
+      }
       throw HttpException('HTTP ${response.statusCode} for $path');
     }
 
     if (!body.startsWith('{')) {
       netLog('Body is not JSON after retries, throwing.');
+      if (isAuthenticated && body.contains('sign_in')) {
+        clearCookies();
+        throw const SessionExpiredException();
+      }
       throw FormatException('Expected JSON for $path, got HTML');
     }
 
     netLog('Parsing JSON response...');
     return InertiaPage.fromJson(jsonDecode(body));
   }
+
+  static List<T> _parseList<T>(
+    dynamic value,
+    T Function(Map<String, dynamic>) parse,
+  ) {
+    if (value is! List) return [];
+    final out = <T>[];
+    for (final item in value) {
+      if (item is! Map<String, dynamic>) continue;
+      try {
+        out.add(parse(item));
+      } catch (e) {
+        netLog('Skipping malformed item: $e');
+      }
+    }
+    return out;
+  }
+
+  static Pagination _pagination(dynamic value, int itemCount) =>
+      value is Map<String, dynamic>
+          ? Pagination.fromJson(value)
+          : Pagination(page: 1, pages: 1, count: itemCount);
 
   static Future<void> _maybeBypassAgeCheck(String html) async {
     // Check if this is an age-check page
@@ -297,73 +330,63 @@ class MurrtubeApi {
     netLog('Age check POST status: ${response.statusCode}');
   }
 
+  static String? _versionFromDataPage(String raw) {
+    try {
+      final cleaned = raw
+          .replaceAll('&quot;', '"')
+          .replaceAll('\\"', '"')
+          .replaceAll('\\n', '\n');
+      final decoded = jsonDecode(cleaned);
+      if (decoded is Map<String, dynamic>) {
+        return decoded['version'] as String?;
+      }
+    } catch (e) {
+      netLog('data-page parse failed: $e');
+    }
+    return null;
+  }
+
   static String? _extractInertiaVersion(String html) {
     netLog('Extracting Inertia version from HTML (${html.length} chars)');
-    // 1. Plain JSON in script tags
-    final versionRegex = RegExp(r'"version":"([^"]+)"');
-    final match = versionRegex.firstMatch(html);
-    if (match != null) {
-      final v = match.group(1);
-      netLog('Found version via regex: $v');
-      return v;
-    }
-    // 2. data-page attribute with double quotes
-    final dataPageRegex = RegExp(r'data-page="([^"]+)"');
-    final dataMatch = dataPageRegex.firstMatch(html);
-    if (dataMatch != null) {
-      try {
-        final raw = dataMatch.group(1)!;
-        final cleaned = raw
-            .replaceAll('&quot;', '"')
-            .replaceAll('\\"', '"')
-            .replaceAll('\\n', '\n');
-        final decoded = jsonDecode(cleaned);
-        if (decoded is Map<String, dynamic>) {
-          final v = decoded['version'] as String?;
+    // 1. data-page attribute (the protocol's own version field)
+    for (final re in [
+      RegExp(r'data-page="([^"]+)"'),
+      RegExp(r"data-page='([^']+)'"),
+    ]) {
+      final m = re.firstMatch(html);
+      if (m != null) {
+        final v = _versionFromDataPage(m.group(1)!);
+        if (v != null) {
           netLog('Found version via data-page: $v');
           return v;
         }
-      } catch (e) {
-        netLog('data-page parse failed: $e');
       }
     }
-    // 2b. data-page with single quotes
-    final dataPageRegex2 = RegExp(r"data-page='([^']+)'");
-    final dataMatch2 = dataPageRegex2.firstMatch(html);
-    if (dataMatch2 != null) {
-      try {
-        final raw = dataMatch2.group(1)!;
-        final cleaned = raw
-            .replaceAll('&quot;', '"')
-            .replaceAll('\\"', '"')
-            .replaceAll('\\n', '\n');
-        final decoded = jsonDecode(cleaned);
-        if (decoded is Map<String, dynamic>) {
-          final v = decoded['version'] as String?;
-          netLog('Found version via data-page single: $v');
-          return v;
-        }
-      } catch (e) {
-        netLog('data-page single parse failed: $e');
-      }
-    }
-    // 3. HTML-escaped &quot;version&quot; in raw HTML
-    final quotRegex = RegExp(r'&quot;version&quot;:&quot;([^&]+)&quot;');
-    final quotMatch = quotRegex.firstMatch(html);
+    // 2. HTML-escaped &quot;version&quot; in raw HTML
+    final quotMatch =
+        RegExp(r'&quot;version&quot;:&quot;([^&]+)&quot;').firstMatch(html);
     if (quotMatch != null) {
       final v = quotMatch.group(1);
       netLog('Found version via &quot; regex: $v');
       return v;
     }
-    // 4. window.__inertia or similar script variable
-    final scriptRegex = RegExp(r'window\.__inertia\s*=\s*\{[^}]*"version"\s*:\s*"([^"]+)"');
-    final scriptMatch = scriptRegex.firstMatch(html);
+    // 3. window.__inertia or similar script variable
+    final scriptMatch = RegExp(
+      r'window\.__inertia\s*=\s*\{[^}]*"version"\s*:\s*"([^"]+)"',
+    ).firstMatch(html);
     if (scriptMatch != null) {
       final v = scriptMatch.group(1);
       netLog('Found version via script: $v');
       return v;
     }
-    // 5. Any occurrence of version in first 500 chars
+    // 4. Bare "version":"x" JSON fragment. Checked last: it can also match a
+    // version field nested inside page props rather than the protocol one.
+    final match = RegExp(r'"version":"([^"]+)"').firstMatch(html);
+    if (match != null) {
+      final v = match.group(1);
+      netLog('Found version via regex: $v');
+      return v;
+    }
     final dump = html.substring(0, html.length.clamp(0, 500));
     netLog('No version found. HTML snippet: $dump');
     return null;
@@ -381,13 +404,10 @@ class MurrtubeApi {
     final path = '/?$q';
     final inertia = await _get(path, homeTab: tab);
     final props = inertia.props;
-    final mediaList = (props['media'] as List<dynamic>)
-        .map((m) => Media.fromJson(m as Map<String, dynamic>))
-        .toList();
-    final pagination = Pagination.fromJson(props['pagination'] as Map<String, dynamic>);
-    final announcements = (props['announcements'] as List<dynamic>)
-        .map((a) => Announcement.fromJson(a as Map<String, dynamic>))
-        .toList();
+    final mediaList = _parseList(props['media'], Media.fromJson);
+    final pagination = _pagination(props['pagination'], mediaList.length);
+    final announcements =
+        _parseList(props['announcements'], Announcement.fromJson);
     final currentUser = props['current_user'] != null
         ? User.fromJson(props['current_user'] as Map<String, dynamic>)
         : null;
@@ -415,14 +435,10 @@ class MurrtubeApi {
     final inertia = await _get('/v/${Uri.encodeComponent(shortCode)}');
     final props = inertia.props;
     final medium = Media.fromJson(props['medium'] as Map<String, dynamic>);
-    final comments = (props['comments'] as List<dynamic>)
-        .map((c) => Comment.fromJson(c as Map<String, dynamic>))
-        .toList();
+    final comments = _parseList(props['comments'], Comment.fromJson);
     final commentsPagination =
-        Pagination.fromJson(props['comments_pagination'] as Map<String, dynamic>);
-    final watchMore = (props['watch_more'] as List<dynamic>? ?? [])
-        .map((m) => Media.fromJson(m as Map<String, dynamic>))
-        .toList();
+        _pagination(props['comments_pagination'], comments.length);
+    final watchMore = _parseList(props['watch_more'], Media.fromJson);
     return (
       medium: medium,
       comments: comments,
@@ -445,17 +461,10 @@ class MurrtubeApi {
     final path = '/search?q=$q&page=$page';
     final inertia = await _get(path);
     final props = inertia.props;
-    final mediaList = (props['media'] as List<dynamic>)
-        .map((m) => Media.fromJson(m as Map<String, dynamic>))
-        .toList();
-    final users = (props['users'] as List<dynamic>? ?? [])
-        .map((u) => User.fromJson(u as Map<String, dynamic>))
-        .toList();
-    final tagMatches = (props['tag_matches'] as List<dynamic>? ?? [])
-        .map((t) => Tag.fromJson(t as Map<String, dynamic>))
-        .toList();
-    final pagination =
-        Pagination.fromJson(props['pagination'] as Map<String, dynamic>);
+    final mediaList = _parseList(props['media'], Media.fromJson);
+    final users = _parseList(props['users'], User.fromJson);
+    final tagMatches = _parseList(props['tag_matches'], Tag.fromJson);
+    final pagination = _pagination(props['pagination'], mediaList.length);
     return (
       query: props['query'] as String?,
       media: mediaList,
@@ -482,21 +491,26 @@ class MurrtubeApi {
       },
     );
     _updateCookiesFromResponse(response);
+    if (response.statusCode != 200) {
+      throw HttpException('HTTP ${response.statusCode} for /search/suggest');
+    }
     final json = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-    final users = (json['users'] as List<dynamic>? ?? [])
-        .map((u) => (
-              slug: u['slug'] as String,
-              name: u['name'] as String,
-              avatarUrl: u['avatar_url'] as String?,
-            ))
-        .toList();
-    final tags = (json['tags'] as List<dynamic>? ?? [])
-        .map((t) => (
-              name: t['name'] as String,
-              category: t['category'] as String,
-              count: t['count'] as int,
-            ))
-        .toList();
+    final users = _parseList(
+      json['users'],
+      (u) => (
+        slug: u['slug'] as String? ?? '',
+        name: u['name'] as String? ?? u['slug'] as String? ?? '',
+        avatarUrl: u['avatar_url'] as String?,
+      ),
+    );
+    final tags = _parseList(
+      json['tags'],
+      (t) => (
+        name: t['name'] as String? ?? '',
+        category: t['category'] as String? ?? 'general',
+        count: t['count'] as int? ?? 0,
+      ),
+    );
     return (
       query: json['query'] as String?,
       users: users,
@@ -511,9 +525,8 @@ class MurrtubeApi {
   })> getNotifications() async {
     final inertia = await _get('/notifications');
     final props = inertia.props;
-    final items = (props['items'] as List<dynamic>)
-        .map((i) => NotificationItem.fromJson(i as Map<String, dynamic>))
-        .toList();
+    final items =
+        _parseList(props['items'], NotificationItem.fromJson);
     return (
       items: items,
       displayCap: props['display_cap'] as int? ?? 0,
@@ -556,16 +569,9 @@ class MurrtubeApi {
     }
     final user = User.fromJson(profileRaw);
 
-    final mediaList = (props['media'] as List<dynamic>? ?? [])
-        .map((m) => Media.fromJson(m as Map<String, dynamic>))
-        .toList();
-    final pagination = Pagination.fromJson(
-      props['pagination'] as Map<String, dynamic>? ??
-          {'page': 1, 'pages': 1, 'count': mediaList.length, 'next': null, 'prev': null},
-    );
-    final playlists = (props['playlists'] as List<dynamic>? ?? [])
-        .map((p) => Playlist.fromJson(p as Map<String, dynamic>))
-        .toList();
+    final mediaList = _parseList(props['media'], Media.fromJson);
+    final pagination = _pagination(props['pagination'], mediaList.length);
+    final playlists = _parseList(props['playlists'], Playlist.fromJson);
     final currentUser = props['current_user'] != null
         ? User.fromJson(props['current_user'] as Map<String, dynamic>)
         : null;
@@ -718,13 +724,7 @@ class MurrtubeApi {
     // The XSRF-TOKEN cookie may be stale. Fetch a fresh token from HTML.
     final response = await _client.get(
       Uri.parse(baseUrl),
-      headers: {
-        'User-Agent': userAgent,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': baseUrl,
-        if (_cookieString != null) 'Cookie': _cookieString!,
-      },
+      headers: _htmlHeaders(),
     );
     _updateCookiesFromResponse(response);
     final html = utf8.decode(response.bodyBytes);
@@ -877,10 +877,7 @@ class MurrtubeApi {
       throw HttpException('HTTP ${response.statusCode}');
     }
     final json = jsonDecode(body) as Map<String, dynamic>;
-    final playlists = (json['playlists'] as List<dynamic>? ?? [])
-        .map((p) => Playlist.fromJson(p as Map<String, dynamic>))
-        .toList();
-    return playlists;
+    return _parseList(json['playlists'], Playlist.fromJson);
   }
 
   static Future<Playlist> createPlaylist({
@@ -936,13 +933,8 @@ class MurrtubeApi {
     final inertia = await _get(path);
     final props = inertia.props;
     final playlist = Playlist.fromJson(props['playlist'] as Map<String, dynamic>);
-    final mediaList = (props['items'] as List<dynamic>? ?? [])
-        .map((m) => Media.fromJson(m as Map<String, dynamic>))
-        .toList();
-    final pagination = Pagination.fromJson(
-      props['pagination'] as Map<String, dynamic>? ??
-          {'page': 1, 'pages': 1, 'count': mediaList.length, 'next': null, 'prev': null},
-    );
+    final mediaList = _parseList(props['items'], Media.fromJson);
+    final pagination = _pagination(props['pagination'], mediaList.length);
     final user = props['user'] != null
         ? User.fromJson(props['user'] as Map<String, dynamic>)
         : null;
@@ -1019,9 +1011,35 @@ class MurrtubeApi {
       throw HttpException('HTTP ${response.statusCode}');
     }
     final json = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-    final tags = (json['tags'] as List<dynamic>? ?? [])
-        .map((t) => Tag.fromJson(t as Map<String, dynamic>))
-        .toList();
-    return tags;
+    return _parseList(json['tags'], Tag.fromJson);
+  }
+
+  // Sign out. Best-effort: the server session is invalidated if the endpoint
+  // exists, and the local jar is always cleared.
+  static Future<void> signOut() async {
+    try {
+      final token = await _fetchCsrfToken();
+      for (final path in ['/sign_out', '/users/sign_out']) {
+        final response = await _client.delete(
+          Uri.parse('$baseUrl$path'),
+          headers: {
+            'User-Agent': userAgent,
+            'Accept': 'application/json',
+            'Referer': baseUrl,
+            'Origin': baseUrl,
+            'x-csrf-token': token,
+            if (_cookieString != null) 'Cookie': _cookieString!,
+          },
+        );
+        _updateCookiesFromResponse(response);
+        netLog('signOut $path status: ${response.statusCode}');
+        if (response.statusCode != 404) break;
+      }
+    } catch (e) {
+      netLog('signOut request failed: $e');
+    } finally {
+      clearCookies();
+      unawaited(CookieLoader.clear().catchError((Object _) {}));
+    }
   }
 }

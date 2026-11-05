@@ -7,7 +7,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/murrtube_api.dart';
-import '../utils/cookie_loader.dart';
 import '../utils/app_preferences.dart';
 import '../utils/data_transfer.dart';
 import '../utils/page_transitions.dart';
@@ -224,9 +223,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           label: 'Log Out',
                           iconColor: Theme.of(context).colorScheme.error,
                           onTap: () async {
-                            MurrtubeApi.clearCookies();
-                            await CookieLoader.clear();
-                            debugPrint('Logged out');
+                            await MurrtubeApi.signOut();
                             if (mounted) _load();
                           },
                         ),
