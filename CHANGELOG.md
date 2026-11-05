@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.1 - 2026-11-05
+#### Bug Fixes
+- 修复 Cookie 处理与会话持久化 - (1e84895) - HttpAnimations
+
+- - -
+
 ## v0.4.0 - 2026-11-03
 #### Features
 - 双击屏幕两侧快进/快退10秒 - (60d7eea) - HttpAnimations
