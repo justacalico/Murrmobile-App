@@ -44,6 +44,7 @@ class _ProfilePageState extends State<ProfilePage>
   String? _onlyfansUrl;
   Map<String, int> _tabCounts = {};
   bool _loading = true;
+  bool _failed = false;
   bool _loadingMore = false;
   bool _hasMore = true;
   int _currentPage = 1;
@@ -78,6 +79,9 @@ class _ProfilePageState extends State<ProfilePage>
       _hasMore = true;
       _media = [];
       _playlists = [];
+      _failed = false;
+      _currentTab = 'videos';
+      if (_tabController.index != 0) _tabController.index = 0;
       _load();
     }
   }
@@ -123,7 +127,10 @@ class _ProfilePageState extends State<ProfilePage>
       });
     } catch (e) {
       debugPrint('ProfilePage load error: $e');
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _failed = !e.toString().contains('HTTP 404');
+      });
     }
   }
 
@@ -284,7 +291,7 @@ class _ProfilePageState extends State<ProfilePage>
       return Scaffold(
         body: ErrorState(
           icon: Icons.person_off,
-          message: 'User not found',
+          message: _failed ? "Couldn't load profile" : 'User not found',
           onRetry: _load,
         ),
       );
@@ -473,7 +480,7 @@ class _ProfilePageState extends State<ProfilePage>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _StatBadge(label: 'Videos', value: _formatCount(_media.length)),
+              _StatBadge(label: 'Videos', value: _formatCount(_tabCounts['videos'] ?? _media.length)),
               const SizedBox(width: 20),
               _StatBadge(
                 label: 'Subscribers',
@@ -699,8 +706,21 @@ class _ProfilePageState extends State<ProfilePage>
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _playlists.length,
+      itemCount: _playlists.length + (_hasMore ? 1 : 0),
       itemBuilder: (context, index) {
+        if (index >= _playlists.length) {
+          _loadMore();
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
         final p = _playlists[index];
         return GestureDetector(
           onTap: () {

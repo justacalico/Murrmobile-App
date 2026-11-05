@@ -82,7 +82,8 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     try {
       final props = await MurrtubeApi.getSettings();
-      final user = props['current_user'] as Map<String, dynamic>?;
+      final user = (props['user'] ?? props['current_user'])
+          as Map<String, dynamic>?;
       if (user != null && user['slug'] != null) {
         MurrtubeApi.currentUserSlug = user['slug'] as String;
       }
@@ -101,7 +102,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _props?['user'] as Map<String, dynamic>?;
+    final user =
+        (_props?['user'] ?? _props?['current_user']) as Map<String, dynamic>?;
     final serverQuality = _props?['video_quality_options'] as List<dynamic>? ?? [];
 
     final themes = [

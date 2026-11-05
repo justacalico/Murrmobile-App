@@ -3,7 +3,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/notification.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'video_detail_page.dart';
+import 'profile_page.dart';
+import '../widgets/error_state.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -14,7 +17,9 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   List<NotificationItem> _items = [];
+  int _displayCap = 0;
   bool _loading = true;
+  bool _failed = false;
 
   @override
   void initState() {
@@ -27,11 +32,15 @@ class _NotificationsPageState extends State<NotificationsPage> {
       final result = await MurrtubeApi.getNotifications();
       setState(() {
         _items = result.items;
+        _displayCap = result.displayCap;
         _loading = false;
       });
     } catch (e) {
       debugPrint('NotificationsPage error: $e');
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
     }
   }
 
@@ -55,22 +64,36 @@ class _NotificationsPageState extends State<NotificationsPage> {
           : RefreshIndicator(
               onRefresh: _load,
               child: _items.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.notifications_none,
-                            size: 48,
-                            color: mutedColor,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No notifications',
-                            style: TextStyle(color: mutedColor),
-                          ),
-                        ],
-                      ),
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.sizeOf(context).height * 0.6,
+                          child: _failed
+                              ? ErrorState(
+                                  icon: Icons.notifications_off_outlined,
+                                  message: "Couldn't load notifications",
+                                  onRetry: _load,
+                                )
+                              : Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.notifications_none,
+                                        size: 48,
+                                        color: mutedColor,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No notifications',
+                                        style: TextStyle(color: mutedColor),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                        ),
+                      ],
                     )
                   : CustomScrollView(
                       slivers: [
@@ -124,20 +147,43 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   item: item,
                                   onTap: () {
                                     if (item.url == null) return;
-                                    // Extract short code from /v/ICYP or /v/ICYP#comment-...
-                                    final match = RegExp(r'/v/([^/#]+)').firstMatch(item.url!);
-                                    if (match == null) return;
-                                    final shortCode = match.group(1)!;
-                                    // Extract comment ID from fragment #comment-uuid
-                                    final fragmentMatch = RegExp(r'#(.+)').firstMatch(item.url!);
-                                    final commentId = fragmentMatch?.group(1);
-                                    pushPage(
-                                      context,
-                                      builder: (_) => VideoDetailPage(
-                                        shortCode: shortCode,
-                                        commentId: commentId,
-                                      ),
-                                    );
+                                    final videoMatch = RegExp(r'/v/([^/#]+)')
+                                        .firstMatch(item.url!);
+                                    if (videoMatch != null) {
+                                      final fragmentMatch =
+                                          RegExp(r'#(.+)').firstMatch(item.url!);
+                                      pushPage(
+                                        context,
+                                        builder: (_) => VideoDetailPage(
+                                          shortCode: videoMatch.group(1)!,
+                                          commentId: fragmentMatch?.group(1),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    final userMatch =
+                                        RegExp(r'^/?([A-Za-z0-9_-]+)/?')
+                                            .firstMatch(item.url!);
+                                    if (userMatch != null &&
+                                        !item.url!.startsWith('http')) {
+                                      pushPage(
+                                        context,
+                                        builder: (_) => ProfilePage(
+                                          slug: userMatch.group(1)!,
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    final uri = Uri.tryParse(item.url!);
+                                    if (uri != null) {
+                                      launchUrl(
+                                        uri.hasScheme
+                                            ? uri
+                                            : Uri.parse(
+                                                'https://murrtube.net${item.url}'),
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    }
                                   },
                                 );
                               },
@@ -145,6 +191,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             ),
                           ),
                         ),
+                        if (_displayCap > 0 && _items.length >= _displayCap)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 20),
+                              child: Center(
+                                child: Text(
+                                  'Showing latest $_displayCap',
+                                  style: TextStyle(color: mutedColor),
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
             ),

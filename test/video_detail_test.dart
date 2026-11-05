@@ -102,12 +102,12 @@ void main() {
     await pumpDetail(tester);
     await settleAsync(tester);
     await tester.pump();
-    expect(find.text('Video not found'), findsOneWidget);
+    expect(find.text("Couldn't load video"), findsOneWidget);
 
     await tester.tap(find.text('Retry'));
     await settleAsync(tester);
     await tester.pump();
-    expect(find.text('Video not found'), findsNothing);
+    expect(find.text("Couldn't load video"), findsNothing);
     await unmount(tester);
   });
 

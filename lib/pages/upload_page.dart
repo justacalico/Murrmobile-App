@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/murrtube_api.dart';
+import '../widgets/error_state.dart';
 
 class UploadPage extends StatefulWidget {
   const UploadPage({super.key});
@@ -11,6 +12,7 @@ class UploadPage extends StatefulWidget {
 class _UploadPageState extends State<UploadPage> {
   Map<String, dynamic>? _props;
   bool _loading = true;
+  bool _failed = false;
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   String _visibility = 'public';
@@ -30,7 +32,10 @@ class _UploadPageState extends State<UploadPage> {
       });
     } catch (e) {
       debugPrint('UploadPage error: $e');
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
     }
   }
 
@@ -64,7 +69,13 @@ class _UploadPageState extends State<UploadPage> {
                 ),
               ),
             )
-          : ListView(
+          : _failed
+              ? ErrorState(
+                  icon: Icons.cloud_off_outlined,
+                  message: "Couldn't load upload form",
+                  onRetry: _load,
+                )
+              : ListView(
               padding: const EdgeInsets.all(20),
               children: [
                 Text(

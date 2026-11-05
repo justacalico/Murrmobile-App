@@ -21,10 +21,13 @@ class ErrorState extends StatelessWidget {
         children: [
           Icon(icon, size: 48, color: muted),
           const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: muted, fontSize: 15),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: muted, fontSize: 15),
+            ),
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 16),

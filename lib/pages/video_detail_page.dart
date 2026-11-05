@@ -42,6 +42,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   List<Media> _watchMore = [];
   VideoPlayerController? _controller;
   bool _loading = true;
+  bool _failed = false;
   bool _showComments = false;
   bool _showSkip = false;
   bool _skipForward = true;
@@ -139,7 +140,10 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       }
     } catch (e) {
       debugPrint('VideoDetailPage load error: $e');
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _failed = !e.toString().contains('HTTP 404');
+      });
     }
   }
 
@@ -557,7 +561,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       return Scaffold(
         body: ErrorState(
           icon: Icons.videocam_off_outlined,
-          message: 'Video not found',
+          message: _failed ? "Couldn't load video" : 'Video not found',
           onRetry: _load,
         ),
       );
