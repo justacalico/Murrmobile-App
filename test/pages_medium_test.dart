@@ -116,7 +116,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settleAsync(tester);
       await tester.pump();
-      expect(find.text('No results found'), findsOneWidget);
+      expect(find.text("Couldn't load results"), findsOneWidget);
     });
 
     testWidgets('initialQuery triggers search on mount', (tester) async {
@@ -551,7 +551,7 @@ void main() {
       await pumpApp(tester, const UploadPage());
       await settleAsync(tester);
       await tester.pump();
-      expect(find.text('Upload'), findsOneWidget);
+      expect(find.text("Couldn't load upload form"), findsOneWidget);
       expect(find.text('Visibility'), findsNothing);
     });
 

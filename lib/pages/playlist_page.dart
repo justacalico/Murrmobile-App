@@ -30,6 +30,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   List<Media> _media = [];
   User? _user;
   bool _loading = true;
+  bool _failed = false;
   bool _loadingMore = false;
   bool _hasMore = true;
   int _currentPage = 1;
@@ -57,7 +58,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
       });
     } catch (e) {
       debugPrint('PlaylistPage load error: $e');
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _failed = !e.toString().contains('HTTP 404');
+      });
     }
   }
 
@@ -117,7 +121,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
       return Scaffold(
         body: ErrorState(
           icon: Icons.playlist_remove,
-          message: 'Playlist not found',
+          message: _failed ? "Couldn't load playlist" : 'Playlist not found',
           onRetry: _load,
         ),
       );

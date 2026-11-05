@@ -6,6 +6,7 @@ import '../models/user.dart';
 import '../models/tag.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
+import '../widgets/error_state.dart';
 import '../widgets/video_card.dart';
 import 'video_detail_page.dart';
 import 'profile_page.dart';
@@ -25,6 +26,7 @@ class _SearchPageState extends State<SearchPage> {
   List<User> _users = [];
   List<Tag> _tagMatches = [];
   bool _loading = false;
+  bool _failed = false;
   bool _hasMore = true;
   int _currentPage = 1;
   String? _lastQuery;
@@ -44,6 +46,7 @@ class _SearchPageState extends State<SearchPage> {
     final gen = ++_searchGen;
     setState(() {
       _loading = true;
+      _failed = false;
       _lastQuery = query;
       _currentPage = 1;
       _hasMore = true;
@@ -61,6 +64,9 @@ class _SearchPageState extends State<SearchPage> {
       });
     } catch (e) {
       debugPrint('SearchPage error: $e');
+      if (mounted && gen == _searchGen) {
+        setState(() => _failed = true);
+      }
     } finally {
       if (mounted && gen == _searchGen) {
         setState(() => _loading = false);
@@ -544,12 +550,18 @@ class _SearchPageState extends State<SearchPage> {
                 _tagMatches.isEmpty &&
                 _lastQuery != null)
               SliverFillRemaining(
-                child: Center(
-                  child: Text(
-                    'No results found',
-                    style: TextStyle(color: mutedColor),
-                  ),
-                ),
+                child: _failed
+                    ? ErrorState(
+                        icon: Icons.search_off,
+                        message: "Couldn't load results",
+                        onRetry: _search,
+                      )
+                    : Center(
+                        child: Text(
+                          'No results found',
+                          style: TextStyle(color: mutedColor),
+                        ),
+                      ),
               ),
           ],
         ],

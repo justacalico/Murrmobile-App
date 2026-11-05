@@ -328,7 +328,7 @@ void main() {
       expect(find.text('Actor commented'), findsWidgets);
     });
 
-    testWidgets('load error shows empty state', (tester) async {
+    testWidgets('load error shows error state', (tester) async {
       env.server.onGet(
         '/notifications',
         (req) => const FakeResponse(500, '{"error":"x"}'),
@@ -336,7 +336,7 @@ void main() {
       await pumpApp(tester, const NotificationsPage());
       await settleAsync(tester);
       await tester.pump();
-      expect(find.text('No notifications'), findsOneWidget);
+      expect(find.text("Couldn't load notifications"), findsOneWidget);
     });
 
     testWidgets('tapping item with video url pushes detail', (tester) async {
