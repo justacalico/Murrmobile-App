@@ -30,6 +30,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   List<Media> _media = [];
   User? _user;
   bool _loading = true;
+  bool _loadingMore = false;
   bool _hasMore = true;
   int _currentPage = 1;
 
@@ -61,7 +62,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Future<void> _loadMore() async {
-    if (!_hasMore || _loading) return;
+    if (!_hasMore || _loading || _loadingMore) return;
+    _loadingMore = true;
     try {
       final nextPage = _currentPage + 1;
       final result = await MurrtubeApi.getPlaylist(
@@ -69,6 +71,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         widget.playlistSlug,
         page: nextPage,
       );
+      if (!mounted) return;
       setState(() {
         _media.addAll(result.media);
         _hasMore = result.pagination.next != null;
@@ -76,6 +79,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
       });
     } catch (e) {
       debugPrint('PlaylistPage loadMore error: $e');
+    } finally {
+      _loadingMore = false;
     }
   }
 

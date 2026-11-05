@@ -58,7 +58,11 @@ class _HomePageState extends State<HomePage> {
     _load();
   }
 
+  int _loadGen = 0;
+  bool _loadingMore = false;
+
   Future<void> _load() async {
+    final gen = ++_loadGen;
     setState(() {
       _loading = true;
       _failed = false;
@@ -66,6 +70,7 @@ class _HomePageState extends State<HomePage> {
     });
     try {
       final result = await MurrtubeApi.getHome(tab: _currentTab, page: _currentPage);
+      if (!mounted || gen != _loadGen) return;
       setState(() {
         if (_currentPage == 1) {
           _media = result.media;
@@ -77,9 +82,12 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       debugPrint('HomePage load error: $e');
+      if (!mounted || gen != _loadGen) return;
       setState(() => _failed = true);
     } finally {
-      setState(() => _loading = false);
+      if (mounted && gen == _loadGen) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -95,16 +103,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadMore() async {
-    if (_loading || !_hasMore) return;
-    setState(() {
-      _loading = true;
-      _loadMoreFailed = false;
-    });
+    if (_loading || _loadingMore || !_hasMore) return;
+    final gen = _loadGen;
+    _loadingMore = true;
+    setState(() => _loadMoreFailed = false);
     try {
       final result = await MurrtubeApi.getHome(
         tab: _currentTab,
         page: _currentPage + 1,
       );
+      if (!mounted || gen != _loadGen) return;
       setState(() {
         _currentPage++;
         _media.addAll(result.media);
@@ -112,9 +120,11 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       debugPrint('HomePage load more error: $e');
-      setState(() => _loadMoreFailed = true);
+      if (mounted && gen == _loadGen) {
+        setState(() => _loadMoreFailed = true);
+      }
     } finally {
-      setState(() => _loading = false);
+      _loadingMore = false;
     }
   }
 

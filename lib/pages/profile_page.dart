@@ -44,6 +44,7 @@ class _ProfilePageState extends State<ProfilePage>
   String? _onlyfansUrl;
   Map<String, int> _tabCounts = {};
   bool _loading = true;
+  bool _loadingMore = false;
   bool _hasMore = true;
   int _currentPage = 1;
   String _currentTab = 'videos';
@@ -127,7 +128,8 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _loadMore() async {
-    if (!_hasMore || _loading) return;
+    if (!_hasMore || _loading || _loadingMore) return;
+    _loadingMore = true;
     try {
       final nextPage = _currentPage + 1;
       final result = await MurrtubeApi.getUserProfile(
@@ -135,6 +137,7 @@ class _ProfilePageState extends State<ProfilePage>
         tab: _currentTab,
         page: nextPage,
       );
+      if (!mounted) return;
       setState(() {
         if (_currentTab == 'playlists') {
           _playlists.addAll(result.playlists);
@@ -146,6 +149,8 @@ class _ProfilePageState extends State<ProfilePage>
       });
     } catch (e) {
       debugPrint('ProfilePage loadMore error: $e');
+    } finally {
+      _loadingMore = false;
     }
   }
 

@@ -24,6 +24,7 @@ class _TagEditSheetState extends State<TagEditSheet> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   Timer? _debounce;
+  int _suggestGen = 0;
   bool _suggesting = false;
   List<({String name, String category, int count})> _suggestions = [];
   bool _saving = false;
@@ -46,6 +47,7 @@ class _TagEditSheetState extends State<TagEditSheet> {
   void _onTextChanged(String text) {
     _debounce?.cancel();
     final query = text.trim();
+    final gen = ++_suggestGen;
     if (query.isEmpty) {
       setState(() {
         _suggestions = [];
@@ -54,11 +56,11 @@ class _TagEditSheetState extends State<TagEditSheet> {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 300), () async {
-      if (!mounted) return;
+      if (!mounted || gen != _suggestGen) return;
       setState(() => _suggesting = true);
       try {
         final result = await MurrtubeApi.searchSuggest(query);
-        if (!mounted) return;
+        if (!mounted || gen != _suggestGen) return;
         final currentNames = _tags.map((t) => t.name.toLowerCase()).toSet();
         setState(() {
           _suggestions = result.tags
@@ -67,7 +69,7 @@ class _TagEditSheetState extends State<TagEditSheet> {
           _suggesting = false;
         });
       } catch (e) {
-        if (!mounted) return;
+        if (!mounted || gen != _suggestGen) return;
         setState(() => _suggesting = false);
       }
     });
