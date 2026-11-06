@@ -34,8 +34,6 @@ class MurrtubeApp extends StatelessWidget {
             darkTheme: themeProvider.darkThemeData,
             themeMode: themeProvider.themeMode,
             home: const AgeCheckWrapper(),
-            routes: {
-            },
           );
         },
       ),

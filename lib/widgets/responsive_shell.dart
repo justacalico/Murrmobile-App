@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/murrtube_api.dart';
 import '../utils/fullscreen_state.dart';
 import '../utils/page_transitions.dart';
@@ -35,6 +36,7 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
   bool _wasLoggedIn = false;
   final _navigatorKeys = <String, GlobalKey<NavigatorState>>{};
   final _navObservers = <String, NavigatorObserver>{};
+  final _scrollControllers = <String, ScrollController>{};
 
   void _onTabNavigation() {
     // Inner pushes/pops change what back should do but don't rebuild the
@@ -87,13 +89,17 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
   GlobalKey<NavigatorState> _keyFor(NavItem item) =>
       _navigatorKeys.putIfAbsent(item.label, () => GlobalKey<NavigatorState>());
 
+  ScrollController _scrollerFor(NavItem item) =>
+      _scrollControllers.putIfAbsent(item.label, () => ScrollController());
+
   NavigatorObserver _observerFor(NavItem item) =>
       _navObservers.putIfAbsent(item.label, () => _NavObserver(_onTabNavigation));
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex;
+    _selectedIndex =
+        widget.initialIndex.clamp(0, _items.length - 1);
     _wasLoggedIn = MurrtubeApi.isAuthenticated;
     MurrtubeApi.authVersion.addListener(_onAuthChanged);
   }
@@ -101,6 +107,9 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
   @override
   void dispose() {
     MurrtubeApi.authVersion.removeListener(_onAuthChanged);
+    for (final c in _scrollControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -122,8 +131,38 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
   void _onItemTapped(int index) {
     if (index == _selectedIndex) {
       _keyFor(_items[index]).currentState?.popUntil((route) => route.isFirst);
+      for (final pos in _scrollerFor(_items[index]).positions.toList()) {
+        pos.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     }
     setState(() => _selectedIndex = index);
+  }
+
+  static const _digitKeys = [
+    LogicalKeyboardKey.digit1,
+    LogicalKeyboardKey.digit2,
+    LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
+    LogicalKeyboardKey.digit5,
+    LogicalKeyboardKey.digit6,
+    LogicalKeyboardKey.digit7,
+    LogicalKeyboardKey.digit8,
+    LogicalKeyboardKey.digit9,
+  ];
+
+  Map<ShortcutActivator, VoidCallback> get _shortcuts {
+    final bindings = <ShortcutActivator, VoidCallback>{};
+    for (var i = 0; i < _items.length && i < _digitKeys.length; i++) {
+      final index = i;
+      void tap() => _onItemTapped(index);
+      bindings[SingleActivator(_digitKeys[i], control: true)] = tap;
+      bindings[SingleActivator(_digitKeys[i], meta: true)] = tap;
+    }
+    return bindings;
   }
 
   bool _canPopRoot() {
@@ -138,12 +177,15 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
   }
 
   Widget _buildTabNavigator(NavItem item) {
-    return Navigator(
-      key: _keyFor(item),
-      observers: [_observerFor(item)],
-      onGenerateRoute: (settings) => AppPageRoute(
-        builder: (_) => item.page,
-        settings: settings,
+    return PrimaryScrollController(
+      controller: _scrollerFor(item),
+      child: Navigator(
+        key: _keyFor(item),
+        observers: [_observerFor(item)],
+        onGenerateRoute: (settings) => AppPageRoute(
+          builder: (_) => item.page,
+          settings: settings,
+        ),
       ),
     );
   }
@@ -179,13 +221,20 @@ class _ResponsiveShellState extends State<ResponsiveShell> {
           _selectedIndex = 0;
         }
         if (isDesktop) {
-          return _DesktopLayout(
-            items: items,
-            selectedIndex: _selectedIndex,
-            onItemTapped: _onItemTapped,
-            navigatorKeys: items.map(_keyFor).toList(),
-            navObservers: items.map(_observerFor).toList(),
-            chromeHidden: fullscreen,
+          return CallbackShortcuts(
+            bindings: _shortcuts,
+            child: Focus(
+              autofocus: true,
+              child: _DesktopLayout(
+                items: items,
+                selectedIndex: _selectedIndex,
+                onItemTapped: _onItemTapped,
+                navigatorKeys: items.map(_keyFor).toList(),
+                navObservers: items.map(_observerFor).toList(),
+                scrollControllers: items.map(_scrollerFor).toList(),
+                chromeHidden: fullscreen,
+              ),
+            ),
           );
         }
 
@@ -218,6 +267,7 @@ class _DesktopLayout extends StatelessWidget {
   final ValueChanged<int> onItemTapped;
   final List<GlobalKey<NavigatorState>> navigatorKeys;
   final List<NavigatorObserver> navObservers;
+  final List<ScrollController> scrollControllers;
   final bool chromeHidden;
 
   const _DesktopLayout({
@@ -226,6 +276,7 @@ class _DesktopLayout extends StatelessWidget {
     required this.onItemTapped,
     required this.navigatorKeys,
     required this.navObservers,
+    required this.scrollControllers,
     this.chromeHidden = false,
   });
 
@@ -296,12 +347,15 @@ class _DesktopLayout extends StatelessWidget {
                 child: IndexedStack(
                   index: selectedIndex,
                   children: items.asMap().entries.map((e) {
-                    return Navigator(
-                      key: navigatorKeys[e.key],
-                      observers: [navObservers[e.key]],
-                      onGenerateRoute: (settings) => AppPageRoute(
-                        builder: (_) => e.value.page,
-                        settings: settings,
+                    return PrimaryScrollController(
+                      controller: scrollControllers[e.key],
+                      child: Navigator(
+                        key: navigatorKeys[e.key],
+                        observers: [navObservers[e.key]],
+                        onGenerateRoute: (settings) => AppPageRoute(
+                          builder: (_) => e.value.page,
+                          settings: settings,
+                        ),
                       ),
                     );
                   }).toList(),

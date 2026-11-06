@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -27,8 +26,10 @@ class AppPageRoute<T> extends PageRouteBuilder<T> {
   static RouteTransitionsBuilder _transitionsBuilder() {
     // coverage:ignore-start
     // Use Cupertino on Apple platforms for native feel.
-    // Platform.isIOS/isMacOS read the real OS; tests always run elsewhere.
-    if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
+    // defaultTargetPlatform resolves without dart:io so the web build works.
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS)) {
       return (context, animation, secondaryAnimation, child) {
         return CupertinoPageTransition(
           primaryRouteAnimation: animation,
