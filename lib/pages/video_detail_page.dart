@@ -54,6 +54,13 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   bool _viewerCanComment = false;
   int _likesCount = 0;
   bool _isMuted = false;
+  bool _playerFailed = false;
+  String? _videoUrl;
+  bool _resumeAfterNav = false;
+  bool _lastPlaying = false;
+  bool _lastInitialized = false;
+  bool _lastBuffering = false;
+  DateTime _lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   double _playbackSpeed = 1.0;
   bool _isFullscreen = false;
   bool _showFullscreenUI = true;
@@ -74,15 +81,16 @@ class _VideoDetailPageState extends State<VideoDetailPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      _controller?.pause();
+    if (state == AppLifecycleState.paused) {
+      _pauseVideoIfNeeded();
     }
   }
 
   Future<void> _loadMutePref() async {
     final muted = await AppPreferences.getMute();
-    if (mounted) setState(() => _isMuted = muted);
+    if (!mounted) return;
+    setState(() => _isMuted = muted);
+    _controller?.setVolume(muted ? 0.0 : 1.0);
   }
 
   @override
@@ -96,10 +104,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
         fullscreenMode.value = false;
       });
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
     _fullscreenUITimer?.cancel();
     _controller?.dispose();
@@ -308,26 +313,97 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   }
 
   void _initPlayer(String url) {
+    _videoUrl = url;
     _controller = VideoPlayerController.networkUrl(Uri.parse(url))
       ..setVolume(_isMuted ? 0.0 : 1.0)
       ..setPlaybackSpeed(_playbackSpeed)
       ..setLooping(true)
-      ..addListener(() {
-        if (mounted) setState(() {});
-        if (_controller != null && _controller!.value.isInitialized) {
-          if (_controller!.value.isPlaying) {
-            WakelockPlus.enable();
-          } else {
-            WakelockPlus.disable();
-          }
-        }
-      })
+      ..addListener(_onPlayerChanged)
       ..initialize().then((_) {
-        if (mounted) {
+        if (mounted && !_playerFailed) {
           _controller!.play();
-          setState(() {});
         }
+      }).catchError((e) {
+        debugPrint('Player init failed: $e');
+        if (mounted) setState(() => _playerFailed = true);
       });
+  }
+
+  void _onPlayerChanged() {
+    final c = _controller;
+    if (c == null || !mounted) return;
+    final v = c.value;
+    if (v.isInitialized) {
+      if (v.isPlaying) {
+        WakelockPlus.enable();
+      } else {
+        WakelockPlus.disable();
+      }
+    }
+    if (v.hasError && !_playerFailed) {
+      setState(() => _playerFailed = true);
+      return;
+    }
+    final changed = v.isPlaying != _lastPlaying ||
+        v.isInitialized != _lastInitialized ||
+        v.isBuffering != _lastBuffering;
+    _lastPlaying = v.isPlaying;
+    _lastInitialized = v.isInitialized;
+    _lastBuffering = v.isBuffering;
+    final now = DateTime.now();
+    if (changed ||
+        now.difference(_lastFrame) > const Duration(milliseconds: 250)) {
+      _lastFrame = now;
+      setState(() {});
+    }
+  }
+
+  void _retryPlayer() {
+    final url = _videoUrl;
+    if (url == null) return;
+    _controller?.dispose();
+    _controller = null;
+    setState(() => _playerFailed = false);
+    _initPlayer(url);
+  }
+
+  Widget _buildPlayerError() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Colors.white54,
+            size: 40,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Playback failed',
+            style: TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _retryPlayer,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Text(
+                'Retry',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _cycleSpeed() {
@@ -414,10 +490,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     } else {
       _fullscreenUITimer?.cancel();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
   }
 
@@ -426,15 +499,18 @@ class _VideoDetailPageState extends State<VideoDetailPage>
         _controller!.value.isInitialized &&
         _controller!.value.isPlaying) {
       _controller!.pause();
+      _resumeAfterNav = true;
     }
   }
 
   void _resumeVideoIfNeeded() {
-    if (_controller != null &&
+    if (_resumeAfterNav &&
+        _controller != null &&
         _controller!.value.isInitialized &&
         !_controller!.value.isPlaying) {
       _controller!.play();
     }
+    _resumeAfterNav = false;
   }
 
   void _onDoubleTap(bool forward) {
@@ -452,6 +528,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     }
 
     _controller!.seekTo(newPos);
+    if (_isFullscreen) _startFullscreenUITimer();
     setState(() {
       _showSkip = true;
       _skipForward = forward;
@@ -602,6 +679,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                     ),
                   ),
                 ),
+              if (_playerFailed) _buildPlayerError(),
               // Tap overlay: toggles UI; double tap seeks by side
               Positioned.fill(
                 child: LayoutBuilder(
@@ -1020,6 +1098,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                       ),
                                     ),
                                   ),
+                                if (_playerFailed) _buildPlayerError(),
                                 if (medium.hlsUrl == null)
                                   const Center(
                                     child: Column(
@@ -1142,7 +1221,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                 if (_controller != null &&
                                     _controller!.value.isInitialized)
                                   Positioned(
-                                    bottom: 0,
+                                    bottom: MediaQuery.viewPaddingOf(
+                                      context,
+                                    ).bottom,
                                     left: 0,
                                     right: 0,
                                     child: Container(
@@ -1218,6 +1299,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                                   seekToFraction(fraction);
                                                 },
                                                 onHorizontalDragStart: (_) {
+                                                  _startFullscreenUITimer();
                                                   setState(
                                                     () => _isDraggingTimeline =
                                                         true,
@@ -1225,6 +1307,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                                 },
                                                 onHorizontalDragUpdate:
                                                     (details) {
+                                                  _startFullscreenUITimer();
                                                       final fraction =
                                                           details
                                                               .localPosition
