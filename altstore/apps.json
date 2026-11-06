@@ -12,11 +12,18 @@
       "localizedDescription": "A native Flutter client for murrtube.net. Browse, watch, upload, and comment on videos.",
       "iconURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/raw/main/assets/icon.png",
       "category": "entertainment",
-      "version": "0.4.5",
-      "versionDate": "2026-11-06T00:09:16.000+00:00",
-      "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.4.5/downloads/murrmobile-ios-arm64-unsigned.ipa",
-      "size": 7980312,
+      "version": "0.5.0",
+      "versionDate": "2026-11-06T01:18:52.000+00:00",
+      "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.5.0/downloads/murrmobile-ios-arm64-unsigned.ipa",
+      "size": 7982512,
       "versions": [
+        {
+          "version": "0.5.0",
+          "date": "2026-11-06T01:18:52.000+00:00",
+          "downloadURL": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.5.0/downloads/murrmobile-ios-arm64-unsigned.ipa",
+          "size": 7982512,
+          "minOSVersion": "13.0"
+        },
         {
           "version": "0.4.5",
           "date": "2026-11-06T00:09:16.000+00:00",
@@ -85,6 +92,14 @@
   ],
   "news": [
     {
+      "identifier": "release-v0.5.0",
+      "title": "Murrmobile 0.5.0",
+      "caption": "Version 0.5.0 is now available.",
+      "date": "2026-11-06T01:18:52.000+00:00",
+      "url": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.5.0",
+      "appID": "gitlab.httpanimations.murrmobile"
+    },
+    {
       "identifier": "release-v0.4.5",
       "title": "Murrmobile 0.4.5",
       "caption": "Version 0.4.5 is now available.",
@@ -114,14 +129,6 @@
       "caption": "Version 0.4.1 is now available.",
       "date": "2026-11-05T23:06:00.000+00:00",
       "url": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.4.1",
-      "appID": "gitlab.httpanimations.murrmobile"
-    },
-    {
-      "identifier": "release-v0.4.0",
-      "title": "Murrmobile 0.4.0",
-      "caption": "Version 0.4.0 is now available.",
-      "date": "2026-11-03T23:12:51.000+00:00",
-      "url": "https://gitlab.com/HttpAnimations/Murrmobile-App/-/releases/v0.4.0",
       "appID": "gitlab.httpanimations.murrmobile"
     }
   ]
