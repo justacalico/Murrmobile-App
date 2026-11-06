@@ -341,13 +341,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
                         final media = _media[index];
                         return VideoCard(
                           media: media,
-                          heroTag: 'video-thumb-${media.shortCode}',
+                          heroTag: 'video-thumb-playlist-${media.shortCode}',
                           onTap: () {
                             pushPage(
                               context,
                               builder: (_) => VideoDetailPage(
                                 shortCode: media.shortCode,
-                                heroTag: 'video-thumb-${media.shortCode}',
+                                heroTag: 'video-thumb-playlist-${media.shortCode}',
                               ),
                             );
                           },

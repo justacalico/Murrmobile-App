@@ -653,13 +653,13 @@ class _ProfilePageState extends State<ProfilePage>
               final media = _media[index];
               return VideoCard(
                 media: media,
-                heroTag: 'video-thumb-${media.shortCode}',
+                heroTag: 'video-thumb-profile-${media.shortCode}',
                 onTap: () {
                   pushPage(
                     context,
                     builder: (_) => VideoDetailPage(
                       shortCode: media.shortCode,
-                      heroTag: 'video-thumb-${media.shortCode}',
+                      heroTag: 'video-thumb-profile-${media.shortCode}',
                     ),
                   );
                 },

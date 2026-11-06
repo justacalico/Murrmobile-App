@@ -19,6 +19,16 @@ import '../widgets/tag_edit_sheet.dart';
 import 'profile_page.dart';
 import 'search_page.dart';
 
+String formatRelativeTime(DateTime t) {
+  final diff = DateTime.now().difference(t);
+  if (diff.inDays >= 365) return '${diff.inDays ~/ 365}y ago';
+  if (diff.inDays >= 30) return '${diff.inDays ~/ 30}mo ago';
+  if (diff.inDays >= 1) return '${diff.inDays}d ago';
+  if (diff.inHours >= 1) return '${diff.inHours}h ago';
+  if (diff.inMinutes >= 1) return '${diff.inMinutes}m ago';
+  return 'just now';
+}
+
 class VideoDetailPage extends StatefulWidget {
   final String shortCode;
   final String? commentId;
@@ -44,6 +54,8 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   bool _loading = true;
   bool _failed = false;
   bool _showComments = false;
+  late final String _uniqueHeroTag =
+      'video-thumb-${widget.shortCode}-${identityHashCode(Object())}';
   bool _showSkip = false;
   bool _skipForward = true;
   double _tapX = 0;
@@ -54,6 +66,13 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   bool _viewerCanComment = false;
   int _likesCount = 0;
   bool _isMuted = false;
+  bool _playerFailed = false;
+  String? _videoUrl;
+  bool _resumeAfterNav = false;
+  bool _lastPlaying = false;
+  bool _lastInitialized = false;
+  bool _lastBuffering = false;
+  DateTime _lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   double _playbackSpeed = 1.0;
   bool _isFullscreen = false;
   bool _showFullscreenUI = true;
@@ -74,15 +93,16 @@ class _VideoDetailPageState extends State<VideoDetailPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      _controller?.pause();
+    if (state == AppLifecycleState.paused) {
+      _pauseVideoIfNeeded();
     }
   }
 
   Future<void> _loadMutePref() async {
     final muted = await AppPreferences.getMute();
-    if (mounted) setState(() => _isMuted = muted);
+    if (!mounted) return;
+    setState(() => _isMuted = muted);
+    _controller?.setVolume(muted ? 0.0 : 1.0);
   }
 
   @override
@@ -96,10 +116,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
         fullscreenMode.value = false;
       });
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
     _fullscreenUITimer?.cancel();
     _controller?.dispose();
@@ -132,8 +149,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
 
         addKeys(_comments);
       });
-      if (_medium?.hlsUrl != null) {
-        _initPlayer(_medium!.hlsUrl!);
+      final playable = _playableUrl(_medium!);
+      if (playable != null) {
+        _initPlayer(playable);
       }
       if (widget.commentId != null) {
         _scrollToComment(widget.commentId!);
@@ -307,27 +325,109 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     }
   }
 
+  static String? _playableUrl(Media medium) {
+    if (medium.hlsUrl != null) return medium.hlsUrl;
+    if (RegExp(
+      r'\.(mp4|webm|mov|m4v)(\?|$)',
+      caseSensitive: false,
+    ).hasMatch(medium.url)) {
+      return medium.url;
+    }
+    return null;
+  }
+
   void _initPlayer(String url) {
+    _videoUrl = url;
     _controller = VideoPlayerController.networkUrl(Uri.parse(url))
       ..setVolume(_isMuted ? 0.0 : 1.0)
       ..setPlaybackSpeed(_playbackSpeed)
       ..setLooping(true)
-      ..addListener(() {
-        if (mounted) setState(() {});
-        if (_controller != null && _controller!.value.isInitialized) {
-          if (_controller!.value.isPlaying) {
-            WakelockPlus.enable();
-          } else {
-            WakelockPlus.disable();
-          }
-        }
-      })
+      ..addListener(_onPlayerChanged)
       ..initialize().then((_) {
-        if (mounted) {
+        if (mounted && !_playerFailed) {
           _controller!.play();
-          setState(() {});
         }
+      }).catchError((e) {
+        debugPrint('Player init failed: $e');
+        if (mounted) setState(() => _playerFailed = true);
       });
+  }
+
+  void _onPlayerChanged() {
+    final c = _controller;
+    if (c == null || !mounted) return;
+    final v = c.value;
+    if (v.isInitialized) {
+      if (v.isPlaying) {
+        WakelockPlus.enable();
+      } else {
+        WakelockPlus.disable();
+      }
+    }
+    if (v.hasError && !_playerFailed) {
+      setState(() => _playerFailed = true);
+      return;
+    }
+    final changed = v.isPlaying != _lastPlaying ||
+        v.isInitialized != _lastInitialized ||
+        v.isBuffering != _lastBuffering;
+    _lastPlaying = v.isPlaying;
+    _lastInitialized = v.isInitialized;
+    _lastBuffering = v.isBuffering;
+    final now = DateTime.now();
+    if (changed ||
+        now.difference(_lastFrame) > const Duration(milliseconds: 250)) {
+      _lastFrame = now;
+      setState(() {});
+    }
+  }
+
+  void _retryPlayer() {
+    final url = _videoUrl;
+    if (url == null) return;
+    _controller?.dispose();
+    _controller = null;
+    setState(() => _playerFailed = false);
+    _initPlayer(url);
+  }
+
+  Widget _buildPlayerError() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Colors.white54,
+            size: 40,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Playback failed',
+            style: TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _retryPlayer,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Text(
+                'Retry',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _cycleSpeed() {
@@ -414,10 +514,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     } else {
       _fullscreenUITimer?.cancel();
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
+      SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
   }
 
@@ -426,15 +523,18 @@ class _VideoDetailPageState extends State<VideoDetailPage>
         _controller!.value.isInitialized &&
         _controller!.value.isPlaying) {
       _controller!.pause();
+      _resumeAfterNav = true;
     }
   }
 
   void _resumeVideoIfNeeded() {
-    if (_controller != null &&
+    if (_resumeAfterNav &&
+        _controller != null &&
         _controller!.value.isInitialized &&
         !_controller!.value.isPlaying) {
       _controller!.play();
     }
+    _resumeAfterNav = false;
   }
 
   void _onDoubleTap(bool forward) {
@@ -452,6 +552,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     }
 
     _controller!.seekTo(newPos);
+    if (_isFullscreen) _startFullscreenUITimer();
     setState(() {
       _showSkip = true;
       _skipForward = forward;
@@ -602,6 +703,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                     ),
                   ),
                 ),
+              if (_playerFailed) _buildPlayerError(),
               // Tap overlay: toggles UI; double tap seeks by side
               Positioned.fill(
                 child: LayoutBuilder(
@@ -733,7 +835,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                 ),
               ),
               // Bottom timeline
-              if (_controller != null && _controller!.value.isInitialized)
+              if (_controller != null &&
+                  _controller!.value.isInitialized &&
+                  !medium.isLive)
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -995,8 +1099,15 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                 else
                                   Hero(
                                     tag:
-                                        widget.heroTag ??
-                                        'video-thumb-${widget.shortCode}',
+                                        widget.heroTag ?? _uniqueHeroTag,
+                                    flightShuttleBuilder:
+                                        (_, animation, direction, from, to) =>
+                                            Image(
+                                              image: CachedNetworkImageProvider(
+                                                medium.thumbnailUrl,
+                                              ),
+                                              fit: BoxFit.cover,
+                                            ),
                                     child: CachedNetworkImage(
                                       imageUrl: medium.thumbnailUrl,
                                       fit: BoxFit.contain,
@@ -1020,20 +1131,25 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                       ),
                                     ),
                                   ),
-                                if (medium.hlsUrl == null)
-                                  const Center(
+                                if (_playerFailed) _buildPlayerError(),
+                                if (medium.hlsUrl == null &&
+                                    _playableUrl(medium) == null)
+                                  Center(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(
+                                        const Icon(
                                           Icons.videocam_off_outlined,
                                           color: Colors.white54,
                                           size: 40,
                                         ),
-                                        SizedBox(height: 8),
+                                        const SizedBox(height: 8),
                                         Text(
-                                          'Video unavailable',
-                                          style: TextStyle(
+                                          medium.status == 'ready' ||
+                                                  medium.status == 'published'
+                                              ? 'Video unavailable'
+                                              : 'Video is ${medium.status}',
+                                          style: const TextStyle(
                                             color: Colors.white70,
                                           ),
                                         ),
@@ -1140,9 +1256,12 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                 ),
                                 // Bottom timeline
                                 if (_controller != null &&
-                                    _controller!.value.isInitialized)
+                                    _controller!.value.isInitialized &&
+                                    !medium.isLive)
                                   Positioned(
-                                    bottom: 0,
+                                    bottom: MediaQuery.viewPaddingOf(
+                                      context,
+                                    ).bottom,
                                     left: 0,
                                     right: 0,
                                     child: Container(
@@ -1218,6 +1337,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                                   seekToFraction(fraction);
                                                 },
                                                 onHorizontalDragStart: (_) {
+                                                  _startFullscreenUITimer();
                                                   setState(
                                                     () => _isDraggingTimeline =
                                                         true,
@@ -1225,6 +1345,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                                 },
                                                 onHorizontalDragUpdate:
                                                     (details) {
+                                                  _startFullscreenUITimer();
                                                       final fraction =
                                                           details
                                                               .localPosition
@@ -1667,6 +1788,51 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                               ],
                             ),
                           ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              if (medium.isLive) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: const Text(
+                                    'LIVE',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Text(
+                                'Uploaded ${formatRelativeTime(medium.publishedAt)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
+                                ),
+                              ),
+                              if (medium.durationLabel.isNotEmpty)
+                                Text(
+                                  ' · ${medium.durationLabel}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color,
+                                  ),
+                                ),
+                            ],
+                          ),
                           if (medium.description != null &&
                               medium.description!.isNotEmpty) ...[
                             const SizedBox(height: 16),
@@ -1881,6 +2047,22 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                           ),
                         ),
                       if (_viewerCanComment) const SizedBox(height: 12),
+                      if (medium.commentsDisabled)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
+                          child: Text(
+                            'Comments are disabled for this video',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
+                            ),
+                          ),
+                        ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Column(
@@ -1948,13 +2130,13 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                 final m = _watchMore[index];
                                 return VideoCard(
                                   media: m,
-                                  heroTag: 'video-thumb-${m.shortCode}',
+                                  heroTag: 'video-thumb-watch-${m.shortCode}',
                                   onTap: () {
                                     pushReplacementPage(
                                       context,
                                       builder: (_) => VideoDetailPage(
                                         shortCode: m.shortCode,
-                                        heroTag: 'video-thumb-${m.shortCode}',
+                                        heroTag: 'video-thumb-watch-${m.shortCode}',
                                       ),
                                     );
                                   },
@@ -2464,6 +2646,18 @@ class _CommentTileState extends State<_CommentTile> {
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                               color: colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: Text(
+                            formatRelativeTime(comment.createdAt),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
                           ),
                         ),

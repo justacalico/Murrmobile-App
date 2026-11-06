@@ -266,13 +266,13 @@ class _HomePageState extends State<HomePage> {
                           final media = _media[index];
                           return VideoCard(
                             media: media,
-                            heroTag: 'video-thumb-${media.shortCode}',
+                            heroTag: 'video-thumb-home-${media.shortCode}',
                             onTap: () {
                               pushPage(
                                 context,
                                 builder: (_) => VideoDetailPage(
                                   shortCode: media.shortCode,
-                                  heroTag: 'video-thumb-${media.shortCode}',
+                                  heroTag: 'video-thumb-home-${media.shortCode}',
                                 ),
                               );
                             },

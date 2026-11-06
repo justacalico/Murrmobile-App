@@ -66,7 +66,7 @@ Map<String, dynamic> mediaJson({
   List<Map<String, dynamic>>? tags,
   bool viewerLiked = false,
   bool isOwner = false,
-  bool isLive = true,
+  bool isLive = false,
   String? hlsUrl,
 }) => {
   'id': id,
