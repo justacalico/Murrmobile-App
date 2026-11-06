@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/murrtube_api.dart';
@@ -11,6 +12,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _blobController = TextEditingController();
   final _sessionController = TextEditingController();
   final _ageCheckController = TextEditingController();
   final _xsrfController = TextEditingController();
@@ -24,82 +26,116 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  @override
+  void dispose() {
+    _blobController.dispose();
+    _sessionController.dispose();
+    _ageCheckController.dispose();
+    _xsrfController.dispose();
+    _sessionIdController.dispose();
+    super.dispose();
+  }
+
+  String? _buildCookieString() {
+    String decode(String v) {
+      try {
+        return Uri.decodeComponent(v);
+      } catch (_) {
+        return v;
+      }
+    }
+
+    final blob = _blobController.text.trim();
+    if (blob.isNotEmpty) {
+      final parts = <String>[];
+      for (final pair in blob.split(';')) {
+        final eq = pair.indexOf('=');
+        if (eq <= 0) continue;
+        final name = pair.substring(0, eq).trim();
+        final value = pair.substring(eq + 1).trim();
+        if (name.isNotEmpty) {
+          parts.add('$name=${decode(value)}');
+        }
+      }
+      if (parts.isEmpty) return null;
+      return parts.join('; ');
+    }
+
+    final parts = <String>[
+      '_murrtube_v3_session=${decode(_sessionController.text.trim())}',
+      'age_check=${decode(_ageCheckController.text.trim())}',
+    ];
+    final xsrf = _xsrfController.text.trim();
+    if (xsrf.isNotEmpty) {
+      parts.add('XSRF-TOKEN=${decode(xsrf)}');
+    }
+    final sessionId = _sessionIdController.text.trim();
+    if (sessionId.isNotEmpty) {
+      parts.add('session_id=${decode(sessionId)}');
+    }
+    return parts.join('; ');
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _saveCookies() async {
-    final session = _sessionController.text.trim();
-    if (session.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Session cookie is required')),
-      );
-      return;
+    final usingBlob = _blobController.text.trim().isNotEmpty;
+    if (!usingBlob) {
+      if (_sessionController.text.trim().isEmpty) {
+        _snack('Session cookie is required');
+        return;
+      }
+      if (_ageCheckController.text.trim().isEmpty) {
+        _snack('age_check cookie is required');
+        return;
+      }
     }
 
     setState(() => _loading = true);
+    final previousCookies = MurrtubeApi.cookies;
     try {
-      String decode(String v) {
-        try {
-          return Uri.decodeComponent(v);
-        } catch (_) {
-          return v;
-        }
+      final cookieString = _buildCookieString();
+      if (cookieString == null ||
+          !cookieString.contains('_murrtube_v3_session=')) {
+        _snack('Missing _murrtube_v3_session in the pasted cookies');
+        return;
       }
-
-      debugPrint('=== LoginPage: _saveCookies ===');
-      debugPrint('Raw session: "${session.substring(0, session.length.clamp(0, 40))}..."');
-
-      final decodedSession = decode(session);
-      debugPrint('Decoded session: "${decodedSession.substring(0, decodedSession.length.clamp(0, 40))}..."');
-
-      final parts = <String>[
-        '_murrtube_v3_session=$decodedSession',
-      ];
-      final ageCheck = _ageCheckController.text.trim();
-      if (ageCheck.isNotEmpty) {
-        final d = decode(ageCheck);
-        parts.add('age_check=$d');
-        debugPrint('age_check present, decoded length: ${d.length}');
-      } else {
-        debugPrint('age_check: empty');
-      }
-      final xsrf = _xsrfController.text.trim();
-      if (xsrf.isNotEmpty) {
-        final d = decode(xsrf);
-        parts.add('XSRF-TOKEN=$d');
-        debugPrint('XSRF-TOKEN present, decoded length: ${d.length}');
-      } else {
-        debugPrint('XSRF-TOKEN: empty');
-      }
-      final sessionId = _sessionIdController.text.trim();
-      if (sessionId.isNotEmpty) {
-        final d = decode(sessionId);
-        parts.add('session_id=$d');
-        debugPrint('session_id present, decoded length: ${d.length}');
-      } else {
-        debugPrint('session_id: empty');
-      }
-
-      final cookieString = parts.join('; ');
-      debugPrint('Final cookieString length: ${cookieString.length}');
-      debugPrint('Final cookieString preview: ${cookieString.substring(0, cookieString.length.clamp(0, 120))}');
 
       MurrtubeApi.setCookies(cookieString);
-      debugPrint('Cookies set on MurrtubeApi');
+      // Verify the session is accepted before saving it.
+      try {
+        final props = await MurrtubeApi.getSettings();
+        final user = (props['user'] ?? props['current_user'])
+            as Map<String, dynamic>?;
+        if (user == null || user['slug'] == null) {
+          throw const HttpException('session rejected');
+        }
+      } catch (e) {
+        MurrtubeApi.clearCookies();
+        if (previousCookies != null) {
+          MurrtubeApi.setCookies(previousCookies);
+        }
+        _snack('Login failed: session looks invalid or expired');
+        return;
+      }
 
       await CookieLoader.save(cookieString);
-      debugPrint('Cookies saved to disk');
-
       if (mounted) {
         Navigator.of(context).pop(true);
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('LoginPage save error: $e');
-      debugPrint('Stack: $st');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        _snack('Error saving cookies: $e');
       }
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -308,6 +344,19 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             const SizedBox(height: 28),
+            _buildCookieField(
+              label:
+                  'Fastest option: copy the full cookie string from DevTools (name=value; name=value) and paste it here.',
+              cookieName: 'full cookie string',
+              controller: _blobController,
+            ),
+            Center(
+              child: Text(
+                'or fill in the individual cookies',
+                style: TextStyle(fontSize: 12, color: mutedColor),
+              ),
+            ),
+            const SizedBox(height: 14),
             _buildCookieField(
               label:
                   'This is your session token. Found in your browser cookies after logging in.',
