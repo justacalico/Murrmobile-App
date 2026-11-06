@@ -34,6 +34,9 @@ class _TagEditSheetState extends State<TagEditSheet> {
   void initState() {
     super.initState();
     _tags = List.from(widget.initialTags);
+    _controller.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -75,13 +78,24 @@ class _TagEditSheetState extends State<TagEditSheet> {
     });
   }
 
-  void _addTag(String name) {
+  void _addTag(String name, {String category = 'general'}) {
     _debounce?.cancel();
     final normalized = name.trim().toLowerCase();
     if (normalized.isEmpty) return;
-    if (_tags.any((t) => t.name.toLowerCase() == normalized)) return;
+    if (!RegExp(r'^[a-z0-9_ -]{1,32}$').hasMatch(normalized)) {
+      setState(() {
+        _error =
+            'Tags may use letters, numbers, spaces, dashes and underscores (max 32)';
+      });
+      return;
+    }
+    if (_tags.any((t) => t.name.toLowerCase() == normalized)) {
+      setState(() => _error = '"$normalized" is already added');
+      return;
+    }
     setState(() {
-      _tags.add(Tag(name: normalized, category: 'general', count: 0));
+      _error = null;
+      _tags.add(Tag(name: normalized, category: category, count: 0));
       _suggestions = [];
       _controller.clear();
     });
@@ -203,7 +217,7 @@ class _TagEditSheetState extends State<TagEditSheet> {
                         color: theme.dividerColor.withValues(alpha: 0.3),
                       ),
                       deleteIcon: const Icon(Icons.close, size: 16),
-                      onDeleted: () => _removeTag(tag),
+                      onDeleted: _saving ? null : () => _removeTag(tag),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     );
                   }).toList(),
@@ -275,7 +289,7 @@ class _TagEditSheetState extends State<TagEditSheet> {
                           color: theme.textTheme.bodySmall?.color,
                         ),
                       ),
-                      onTap: () => _addTag(s.name),
+                      onTap: () => _addTag(s.name, category: s.category),
                     );
                   },
                 ),

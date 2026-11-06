@@ -167,23 +167,24 @@ class _VideoDetailPageState extends State<VideoDetailPage>
     if (commentId.startsWith('comment-')) {
       ids.add(commentId.substring(8));
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Give images/layout a moment to settle, then scroll
-      Future.delayed(const Duration(milliseconds: 400), () {
-        for (final id in ids) {
-          final key = _commentKeys[id];
-          if (key != null && key.currentContext != null) {
-            Scrollable.ensureVisible(
-              key.currentContext!,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeInOut,
-              alignment: 0.0,
-            );
-            return;
-          }
+    var attempts = 0;
+    void tryScroll() {
+      if (!mounted || attempts++ > 60) return;
+      for (final id in ids) {
+        final ctx = _commentKeys[id]?.currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(
+            ctx,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+          return;
         }
-      });
-    });
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) => tryScroll());
+    }
+
+    tryScroll();
   }
 
   Future<void> _showSaveBottomSheet() async {
@@ -198,35 +199,54 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       builder: (ctx) => _SaveSheet(
         medium: _medium!,
         onCreate: (name, visibility) async {
-          await MurrtubeApi.createPlaylist(name: name, visibility: visibility);
-          final updated = await MurrtubeApi.getMyPlaylists();
-          final created = updated.firstWhere(
-            (p) => p.name == name,
-            orElse: () => updated.first,
-          );
-          await MurrtubeApi.addToPlaylist(
-            playlistId: created.id,
-            shortCode: _medium!.shortCode,
-            mediumId: _medium!.id,
-          );
-          if (mounted) {
+          try {
+            final created = await MurrtubeApi.createPlaylist(
+              name: name,
+              visibility: visibility,
+            );
+            var playlistId = created.id;
+            if (playlistId.isEmpty) {
+              final updated = await MurrtubeApi.getMyPlaylists();
+              playlistId = updated.lastWhere((p) => p.name == name).id;
+            }
+            await MurrtubeApi.addToPlaylist(
+              playlistId: playlistId,
+              shortCode: _medium!.shortCode,
+              mediumId: _medium!.id,
+            );
+            if (!ctx.mounted) return;
             Navigator.of(ctx).pop();
             ScaffoldMessenger.of(
               context,
             ).showSnackBar(SnackBar(content: Text('Saved to $name')));
+          } catch (e) {
+            debugPrint('save to playlist error: $e');
+            if (ctx.mounted) {
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(content: Text('Failed to save')),
+              );
+            }
           }
         },
         onSelect: (playlist) async {
-          await MurrtubeApi.addToPlaylist(
-            playlistId: playlist.id,
-            shortCode: _medium!.shortCode,
-            mediumId: _medium!.id,
-          );
-          if (mounted) {
+          try {
+            await MurrtubeApi.addToPlaylist(
+              playlistId: playlist.id,
+              shortCode: _medium!.shortCode,
+              mediumId: _medium!.id,
+            );
+            if (!ctx.mounted) return;
             Navigator.of(ctx).pop();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Saved to ${playlist.name}')),
             );
+          } catch (e) {
+            debugPrint('save to playlist error: $e');
+            if (ctx.mounted) {
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(content: Text('Failed to save')),
+              );
+            }
           }
         },
       ),
@@ -235,11 +255,12 @@ class _VideoDetailPageState extends State<VideoDetailPage>
 
   Future<void> _showTagEditSheet() async {
     if (_medium == null) return;
-    if (!MurrtubeApi.isAuthenticated) return;
+    if (!MurrtubeApi.isAuthenticated || !_medium!.isOwner) return;
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -249,31 +270,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
         initialTags: _medium!.tags,
         onSaved: (tags) {
           setState(() {
-            _medium = Media(
-              id: _medium!.id,
-              shortCode: _medium!.shortCode,
-              title: _medium!.title,
-              url: _medium!.url,
-              duration: _medium!.duration,
-              durationLabel: _medium!.durationLabel,
-              thumbnailUrl: _medium!.thumbnailUrl,
-              previewUrl: _medium!.previewUrl,
-              status: _medium!.status,
-              likesCount: _medium!.likesCount,
-              viewsCount: _medium!.viewsCount,
-              publishedAt: _medium!.publishedAt,
-              createdAt: _medium!.createdAt,
-              user: _medium!.user,
-              description: _medium!.description,
-              visibility: _medium!.visibility,
-              commentsDisabled: _medium!.commentsDisabled,
-              commentsCount: _medium!.commentsCount,
-              tags: tags,
-              viewerLiked: _medium!.viewerLiked,
-              isOwner: _medium!.isOwner,
-              isLive: _medium!.isLive,
-              hlsUrl: _medium!.hlsUrl,
-            );
+            _medium = _medium!.copyWith(tags: tags);
           });
         },
       ),
@@ -557,6 +554,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       if (mounted) {
         setState(() {
           _comments = result.comments;
+          _medium = _medium!.copyWith(
+            commentsCount: _countComments(_comments),
+          );
         });
       }
     } catch (e) {
@@ -570,31 +570,28 @@ class _VideoDetailPageState extends State<VideoDetailPage>
   }
 
   Future<void> _replyToComment(String commentId, String body) async {
-    try {
-      await MurrtubeApi.replyToComment(
-        mediumId: _medium!.id,
-        parentId: commentId,
-        body: body,
-      );
-      final result = await MurrtubeApi.getVideo(widget.shortCode);
-      if (mounted) {
-        setState(() {
-          _comments = result.comments;
-        });
-      }
-    } catch (e) {
-      debugPrint('_replyToComment error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to post reply')));
-      }
+    await MurrtubeApi.replyToComment(
+      mediumId: _medium!.id,
+      parentId: commentId,
+      body: body,
+    );
+    final result = await MurrtubeApi.getVideo(widget.shortCode);
+    if (mounted) {
+      setState(() {
+        _comments = result.comments;
+        _medium = _medium!.copyWith(
+          commentsCount: _countComments(_comments),
+        );
+      });
     }
   }
 
+  static int _countComments(List<Comment> list) =>
+      list.fold(0, (n, c) => n + 1 + _countComments(c.replies));
+
   Future<void> _postComment() async {
     final text = _commentController.text.trim();
-    if (text.isEmpty || _medium == null) return;
+    if (text.isEmpty || _medium == null || _postingComment) return;
     setState(() => _postingComment = true);
     try {
       await MurrtubeApi.postComment(mediumId: _medium!.id, body: text);
@@ -603,6 +600,9 @@ class _VideoDetailPageState extends State<VideoDetailPage>
       if (mounted) {
         setState(() {
           _comments = result.comments;
+          _medium = _medium!.copyWith(
+            commentsCount: _countComments(_comments),
+          );
           _postingComment = false;
         });
       }
@@ -1835,7 +1835,8 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                   tooltip: 'Share',
                                   visualDensity: VisualDensity.compact,
                                 ),
-                                if (MurrtubeApi.isAuthenticated)
+                                if (MurrtubeApi.isAuthenticated &&
+                                    medium.isOwner)
                                   IconButton(
                                     icon: const Icon(Icons.edit, size: 18),
                                     onPressed: _showTagEditSheet,
@@ -1982,6 +1983,7 @@ class _VideoDetailPageState extends State<VideoDetailPage>
                                   onPauseVideo: _pauseVideoIfNeeded,
                                   onResumeVideo: _resumeVideoIfNeeded,
                                   highlighted: _isCommentHighlighted(c.id),
+                                  highlightChecker: _isCommentHighlighted,
                                   replyKeys: _commentKeys,
                                 ),
                               )
@@ -2129,6 +2131,7 @@ class _SaveSheetState extends State<_SaveSheet> {
   bool _creating = false;
   bool _showCreateForm = false;
   bool _loading = true;
+  bool _loadError = false;
   List<Playlist> _playlists = [];
   final _nameController = TextEditingController();
   String _visibility = 'public';
@@ -2150,7 +2153,12 @@ class _SaveSheetState extends State<_SaveSheet> {
       }
     } catch (e) {
       debugPrint('Load playlists error: $e');
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadError = true;
+        });
+      }
     }
   }
 
@@ -2216,7 +2224,22 @@ class _SaveSheetState extends State<_SaveSheet> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (_playlists.isEmpty)
+        if (_loadError)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: ErrorState(
+              icon: Icons.playlist_remove,
+              message: "Couldn't load playlists",
+              onRetry: () {
+                setState(() {
+                  _loading = true;
+                  _loadError = false;
+                });
+                _loadPlaylists();
+              },
+            ),
+          )
+        else if (_playlists.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
             child: Text(
@@ -2407,6 +2430,7 @@ class _CommentTile extends StatefulWidget {
   final VoidCallback? onPauseVideo;
   final VoidCallback? onResumeVideo;
   final bool highlighted;
+  final bool Function(String id)? highlightChecker;
   final Map<String, GlobalKey>? replyKeys;
 
   const _CommentTile({
@@ -2418,6 +2442,7 @@ class _CommentTile extends StatefulWidget {
     this.onPauseVideo,
     this.onResumeVideo,
     this.highlighted = false,
+    this.highlightChecker,
     this.replyKeys,
   });
 
@@ -2438,7 +2463,7 @@ class _CommentTileState extends State<_CommentTile> {
 
   Future<void> _submitReply() async {
     final text = _replyController.text.trim();
-    if (text.isEmpty || widget.onReply == null) return;
+    if (text.isEmpty || widget.onReply == null || _postingReply) return;
     setState(() => _postingReply = true);
     try {
       await widget.onReply!(widget.comment.id, text);
@@ -2740,7 +2765,10 @@ class _CommentTileState extends State<_CommentTile> {
                                   onReply: widget.onReply,
                                   onPauseVideo: widget.onPauseVideo,
                                   onResumeVideo: widget.onResumeVideo,
-                                  highlighted: widget.highlighted,
+                                  highlighted:
+                                      widget.highlightChecker?.call(r.id) ??
+                                          false,
+                                  highlightChecker: widget.highlightChecker,
                                   replyKeys: widget.replyKeys,
                                 ),
                               )
