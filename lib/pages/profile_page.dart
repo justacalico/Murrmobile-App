@@ -6,6 +6,7 @@ import '../models/media.dart';
 import '../models/playlist.dart';
 import '../models/user.dart';
 import '../services/murrtube_api.dart';
+import '../utils/format.dart';
 import '../utils/page_transitions.dart';
 import '../widgets/error_state.dart';
 import '../widgets/linkify_text.dart';
@@ -99,6 +100,7 @@ class _ProfilePageState extends State<ProfilePage>
         widget.slug,
         tab: _currentTab,
       );
+      if (!mounted) return;
       setState(() {
         _user = result.user;
         if (_currentTab == 'playlists') {
@@ -127,6 +129,7 @@ class _ProfilePageState extends State<ProfilePage>
       });
     } catch (e) {
       debugPrint('ProfilePage load error: $e');
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _failed = !e.toString().contains('HTTP 404');
@@ -176,6 +179,7 @@ class _ProfilePageState extends State<ProfilePage>
       }
     } catch (e) {
       debugPrint('Toggle subscribe error: $e');
+      if (!mounted) return;
       setState(() {
         _isSubscribed = wasSubscribed;
         _subscribersCount = (_subscribersCount ?? 0) + (wasSubscribed ? 1 : -1);
@@ -195,6 +199,7 @@ class _ProfilePageState extends State<ProfilePage>
       }
     } catch (e) {
       debugPrint('Toggle block error: $e');
+      if (!mounted) return;
       setState(() => _isBlocked = wasBlocked);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,12 +209,6 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  String _formatCount(int? n) {
-    if (n == null) return '0';
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return n.toString();
-  }
 
   List<_SocialLinkData> get _socialLinks {
     final links = <_SocialLinkData>[];
@@ -340,7 +339,7 @@ class _ProfilePageState extends State<ProfilePage>
   String _tabBadge(String key) {
     final count = _tabCounts[key];
     if (count == null || count == 0) return '';
-    return _formatCount(count);
+    return formatCount(count);
   }
 
   Widget _buildLikesTab(
@@ -480,16 +479,16 @@ class _ProfilePageState extends State<ProfilePage>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _StatBadge(label: 'Videos', value: _formatCount(_tabCounts['videos'] ?? _media.length)),
+              _StatBadge(label: 'Videos', value: formatCount(_tabCounts['videos'] ?? _media.length)),
               const SizedBox(width: 20),
               _StatBadge(
                 label: 'Subscribers',
-                value: _formatCount(_subscribersCount),
+                value: formatCount(_subscribersCount),
               ),
               const SizedBox(width: 20),
               _StatBadge(
                 label: 'Following',
-                value: _formatCount(_subscriptionsCount),
+                value: formatCount(_subscriptionsCount),
               ),
             ],
           ),

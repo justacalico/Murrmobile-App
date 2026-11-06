@@ -5,6 +5,7 @@ import '../models/media.dart';
 import '../models/playlist.dart';
 import '../models/user.dart';
 import '../services/murrtube_api.dart';
+import '../utils/format.dart';
 import '../utils/page_transitions.dart';
 import '../widgets/error_state.dart';
 import '../widgets/video_card.dart';
@@ -48,6 +49,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         widget.userSlug,
         widget.playlistSlug,
       );
+      if (!mounted) return;
       setState(() {
         _playlist = result.playlist;
         _media = result.media;
@@ -58,6 +60,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
       });
     } catch (e) {
       debugPrint('PlaylistPage load error: $e');
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _failed = !e.toString().contains('HTTP 404');
@@ -88,12 +91,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
     }
   }
 
-  String _formatCount(int? n) {
-    if (n == null) return '0';
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return n.toString();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -208,7 +205,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${playlist.visibility} · ${_formatCount(playlist.itemsCount)} items',
+                                '${playlist.visibility} · ${formatCount(playlist.itemsCount)} items',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: mutedColor,

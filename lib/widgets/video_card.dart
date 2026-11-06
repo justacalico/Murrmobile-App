@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/media.dart';
+import '../utils/format.dart';
 
 class VideoCard extends StatefulWidget {
   final Media media;
@@ -214,7 +215,7 @@ class _VideoCardState extends State<VideoCard> {
                         const SizedBox(width: 3),
                         Flexible(
                           child: Text(
-                            _formatCount(media.viewsCount),
+                            formatCount(media.viewsCount),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -233,7 +234,7 @@ class _VideoCardState extends State<VideoCard> {
                         const SizedBox(width: 3),
                         Flexible(
                           child: Text(
-                            _formatCount(media.likesCount),
+                            formatCount(media.likesCount),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -277,12 +278,4 @@ class _VideoCardState extends State<VideoCard> {
     return '${diff.inMinutes.clamp(1, 59)}m ago';
   }
 
-  static String _formatCount(int count) {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    } else if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
-    return '$count';
-  }
 }

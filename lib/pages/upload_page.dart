@@ -18,6 +18,13 @@ class _UploadPageState extends State<UploadPage> {
   String _visibility = 'public';
 
   @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _load();
