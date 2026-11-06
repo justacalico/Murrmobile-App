@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.4.5 - 2026-11-06
+#### Bug Fixes
+- 修复播放器初始化失败、重建风暴与全屏问题 - (b5c0dbc) - HttpAnimations
+
+- - -
+
 ## v0.4.4 - 2026-11-05
 #### Bug Fixes
 - 区分加载失败与空状态，修复通知导航 - (06918ad) - HttpAnimations
