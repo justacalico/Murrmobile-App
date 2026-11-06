@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/media.dart';
 import '../models/announcement.dart';
+import '../utils/app_preferences.dart';
 import '../services/murrtube_api.dart';
 import '../utils/page_transitions.dart';
 import '../widgets/error_state.dart';
@@ -19,6 +20,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<Media> _media = [];
   List<Announcement> _announcements = [];
+  Set<String> _dismissedAnnouncements = {};
   bool _loading = false;
   bool _failed = false;
   bool _loadMoreFailed = false;
@@ -33,6 +35,7 @@ class _HomePageState extends State<HomePage> {
     _currentTab = widget.tab;
     _wasLoggedIn = MurrtubeApi.isAuthenticated;
     MurrtubeApi.authVersion.addListener(_onAuthChanged);
+    _loadDismissed();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -58,6 +61,19 @@ class _HomePageState extends State<HomePage> {
     _load();
   }
 
+  Future<void> _loadDismissed() async {
+    final ids = await AppPreferences.getDismissedAnnouncements();
+    if (mounted) setState(() => _dismissedAnnouncements = ids);
+  }
+
+  void _dismissAnnouncement(Announcement a) {
+    setState(() {
+      _announcements.removeWhere((x) => x.id == a.id);
+      _dismissedAnnouncements.add(a.id);
+    });
+    AppPreferences.dismissAnnouncement(a.id);
+  }
+
   int _loadGen = 0;
   bool _loadingMore = false;
 
@@ -74,7 +90,9 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         if (_currentPage == 1) {
           _media = result.media;
-          _announcements = result.announcements;
+          _announcements = result.announcements
+              .where((a) => !_dismissedAnnouncements.contains(a.id))
+              .toList();
         } else {
           _media.addAll(result.media);
         }
@@ -182,7 +200,11 @@ class _HomePageState extends State<HomePage> {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: AnnouncementBanner(announcement: _announcements[index]),
+                      child: AnnouncementBanner(
+                        announcement: _announcements[index],
+                        onDismiss: () =>
+                            _dismissAnnouncement(_announcements[index]),
+                      ),
                     ),
                     childCount: _announcements.length,
                   ),
