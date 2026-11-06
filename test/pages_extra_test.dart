@@ -843,8 +843,16 @@ void main() {
       tester,
     ) async {
       env.pathProvider.failDocuments = true;
+      env.server.onGet(
+        '/settings',
+        (req) => FakeResponse.inertia('Settings', {
+          'current_user': {'slug': 'me'},
+        }),
+      );
       await pumpApp(tester, const LoginPage(), size: const Size(600, 1600));
-      await tester.enterText(find.byType(TextField).first, 'sess1');
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), 'sess1');
+      await tester.enterText(fields.at(2), 'age1');
       await tester.runAsync(() async {
         await tester.tap(find.text('Save & Connect'));
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -852,7 +860,7 @@ void main() {
       for (var i = 0; i < 20; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
-      expect(find.textContaining('Error:'), findsOneWidget);
+      expect(find.textContaining('Error saving cookies:'), findsOneWidget);
     });
 
     testWidgets('close button pops', (tester) async {

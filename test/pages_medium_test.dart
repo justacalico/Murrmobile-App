@@ -750,6 +750,12 @@ void main() {
     });
 
     testWidgets('save builds cookie string and pops true', (tester) async {
+      env.server.onGet(
+        '/settings',
+        (req) => FakeResponse.inertia('Settings', {
+          'current_user': {'slug': 'me'},
+        }),
+      );
       bool? result;
       await pumpApp(
         tester,
@@ -768,10 +774,10 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       final fields = find.byType(TextField);
-      await tester.enterText(fields.at(0), 'sess%20val');
-      await tester.enterText(fields.at(1), 'age1');
-      await tester.enterText(fields.at(2), 'xsrf1');
-      await tester.enterText(fields.at(3), 'sid1');
+      await tester.enterText(fields.at(1), 'sess%20val');
+      await tester.enterText(fields.at(2), 'age1');
+      await tester.enterText(fields.at(3), 'xsrf1');
+      await tester.enterText(fields.at(4), 'sid1');
       await tester.runAsync(() async {
         await tester.tap(find.text('Save & Connect'));
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -783,7 +789,13 @@ void main() {
       expect(MurrtubeApi.isAuthenticated, isTrue);
     });
 
-    testWidgets('save with only session works', (tester) async {
+    testWidgets('save with session and age check works', (tester) async {
+      env.server.onGet(
+        '/settings',
+        (req) => FakeResponse.inertia('Settings', {
+          'current_user': {'slug': 'me'},
+        }),
+      );
       bool? result;
       await pumpApp(
         tester,
@@ -801,7 +813,9 @@ void main() {
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).first, 'only%session');
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), 'only%session');
+      await tester.enterText(fields.at(2), 'age1');
       await tester.runAsync(() async {
         await tester.tap(find.text('Save & Connect'));
         await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -811,6 +825,72 @@ void main() {
       }
       expect(result, isTrue);
       expect(MurrtubeApi.hasCookies, isTrue);
+    });
+
+    testWidgets('save with a blob string parses and pops true', (tester) async {
+      env.server.onGet(
+        '/settings',
+        (req) => FakeResponse.inertia('Settings', {
+          'current_user': {'slug': 'me'},
+        }),
+      );
+      bool? result;
+      await pumpApp(
+        tester,
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+              );
+            },
+            child: const Text('open'),
+          ),
+        ),
+        size: const Size(600, 1600),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField).first,
+        '_murrtube_v3_session=blob%20sess; age_check=age1; XSRF-TOKEN=x1',
+      );
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Save & Connect'));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(result, isTrue);
+      expect(MurrtubeApi.cookies, contains('blob sess'));
+      expect(MurrtubeApi.cookies, contains('age_check=age1'));
+    });
+
+    testWidgets('invalid session shows error and keeps old cookies', (
+      tester,
+    ) async {
+      MurrtubeApi.setCookies('_murrtube_v3_session=old');
+      env.server.onGet(
+        '/settings',
+        (req) => FakeResponse.inertia('Settings', const {}),
+      );
+      await pumpApp(tester, const LoginPage(), size: const Size(600, 1600));
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), 'bad');
+      await tester.enterText(fields.at(2), 'age1');
+      await tester.runAsync(() async {
+        await tester.tap(find.text('Save & Connect'));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(
+        find.text('Login failed: session looks invalid or expired'),
+        findsOneWidget,
+      );
+      expect(MurrtubeApi.cookies, '_murrtube_v3_session=old');
     });
 
     testWidgets('clear button on a field empties it', (tester) async {
