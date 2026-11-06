@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../utils/launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -328,28 +328,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildActionTile(
                         icon: Icons.description_outlined,
                         label: 'Terms of Service',
-                        onTap: () => launchUrl(
-                          Uri.parse('https://murrtube.net/about/terms'),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                        onTap: () => launchExternal(context, 'https://murrtube.net/about/terms'),
                         showDivider: true,
                       ),
                       _buildActionTile(
                         icon: Icons.privacy_tip_outlined,
                         label: 'Privacy Policy',
-                        onTap: () => launchUrl(
-                          Uri.parse('https://murrtube.net/about/privacy'),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                        onTap: () => launchExternal(context, 'https://murrtube.net/about/privacy'),
                         showDivider: true,
                       ),
                       _buildActionTile(
                         icon: Icons.cookie_outlined,
                         label: 'Cookie Policy',
-                        onTap: () => launchUrl(
-                          Uri.parse('https://murrtube.net/about/cookies'),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                        onTap: () => launchExternal(context, 'https://murrtube.net/about/cookies'),
                       ),
                     ],
                   ),
@@ -413,20 +404,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: Icons.code,
                         label: 'Source Code',
                         subtitle: 'gitlab.com/HttpAnimations/Murrmobile-App',
-                        onTap: () => launchUrl(
-                          Uri.parse('https://gitlab.com/HttpAnimations/Murrmobile-App'),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                        onTap: () => launchExternal(context, 'https://gitlab.com/HttpAnimations/Murrmobile-App'),
                         showDivider: true,
                       ),
                       _buildActionTile(
                         icon: Icons.balance_outlined,
                         label: 'License',
                         subtitle: 'GNU AGPL v3.0',
-                        onTap: () => launchUrl(
-                          Uri.parse('https://gitlab.com/HttpAnimations/Murrmobile-App/-/blob/main/LICENSE'),
-                          mode: LaunchMode.externalApplication,
-                        ),
+                        onTap: () => launchExternal(context, 'https://gitlab.com/HttpAnimations/Murrmobile-App/-/blob/main/LICENSE'),
                       ),
                     ],
                   ),

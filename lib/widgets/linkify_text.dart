@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../utils/launcher.dart';
 
 class LinkifyText extends StatefulWidget {
   final String text;
@@ -61,21 +61,31 @@ class _LinkifyTextState extends State<LinkifyText> {
       if (match.start > lastIndex) {
         spans.add(TextSpan(text: widget.text.substring(lastIndex, match.start)));
       }
-      final url = match.group(0)!;
+      var url = match.group(0)!;
+      var end = match.end;
+      while (url.isNotEmpty &&
+          '.,!?;:\'")]'.contains(url[url.length - 1])) {
+        url = url.substring(0, url.length - 1);
+        end--;
+      }
+      if (url.isEmpty) {
+        continue;
+      }
+      if (end < match.end) {
+        spans.add(TextSpan(
+          text: widget.text.substring(lastIndex, match.start),
+        ));
+      }
+      final linkUrl = url;
       final recognizer = TapGestureRecognizer()
-        ..onTap = () async {
-          final uri = Uri.parse(url);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-        };
+        ..onTap = () => launchExternal(context, linkUrl);
       _recognizers.add(recognizer);
       spans.add(TextSpan(
-        text: url,
+        text: linkUrl,
         style: defaultLinkStyle,
         recognizer: recognizer,
       ));
-      lastIndex = match.end;
+      lastIndex = end;
     }
 
     if (lastIndex < widget.text.length) {

@@ -1,5 +1,5 @@
 class Announcement {
-  final dynamic id;
+  final String id;
   final String title;
   final String body;
   final String? ctaUrl;
@@ -17,7 +17,7 @@ class Announcement {
 
   factory Announcement.fromJson(Map<String, dynamic> json) {
     return Announcement(
-      id: json['id'],
+      id: '${json['id']}',
       title: json['title'] as String,
       body: json['body'] as String,
       ctaUrl: json['cta_url'] as String?,

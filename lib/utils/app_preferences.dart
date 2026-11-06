@@ -25,6 +25,20 @@ class AppPreferences {
     await prefs.setString(_videoQualityKey, quality);
   }
 
+  static Future<Set<String>> getDismissedAnnouncements() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getStringList('dismissed_announcements') ?? []).toSet();
+  }
+
+  static Future<void> dismissAnnouncement(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList('dismissed_announcements') ?? [];
+    if (!ids.contains(id)) {
+      ids.add(id);
+      await prefs.setStringList('dismissed_announcements', ids);
+    }
+  }
+
   static Future<bool> getMute() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_muteKey) ?? false;

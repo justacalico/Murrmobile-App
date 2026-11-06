@@ -840,10 +840,13 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
 }
 
 Future<void> _launchExternal(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  try {
+    final uri = Uri.parse(url);
+    if (uri.scheme != 'http' && uri.scheme != 'https') return;
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  } catch (_) {}
 }
 
 class _SocialLinkData {

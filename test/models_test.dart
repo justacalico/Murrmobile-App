@@ -239,7 +239,7 @@ void main() {
       final a = Announcement.fromJson(
         announcementJson(ctaUrl: 'https://x', ctaLabel: 'Go'),
       );
-      expect(a.id, 1);
+      expect(a.id, '1');
       expect(a.title, 'Announcement');
       expect(a.ctaUrl, 'https://x');
       expect(a.ctaLabel, 'Go');

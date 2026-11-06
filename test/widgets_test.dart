@@ -297,7 +297,10 @@ void main() {
         ),
       );
       expect(find.text('Announcement'), findsOneWidget);
-      expect(find.text('Something happened'), findsOneWidget);
+      expect(
+        find.text('Something happened', findRichText: true),
+        findsOneWidget,
+      );
       expect(find.text('Go'), findsNothing);
     });
 
