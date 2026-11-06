@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.6.0 - 2026-11-06
+#### Features
+- 公告可关闭并修复外部链接处理 - (451a4f7) - HttpAnimations
+
+- - -
+
 ## v0.5.0 - 2026-11-06
 #### Features
 - 登录流程校验会话并支持整串 Cookie 粘贴 - (a85157b) - HttpAnimations
