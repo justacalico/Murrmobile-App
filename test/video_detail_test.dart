@@ -647,7 +647,7 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    expect(find.text('No playlists yet'), findsOneWidget);
+    expect(find.text("Couldn't load playlists"), findsOneWidget);
     await unmount(tester);
   });
 
@@ -1108,9 +1108,7 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('create flow falls back to first playlist when name missing', (
-    tester,
-  ) async {
+  testWidgets('create flow saves to the created playlist', (tester) async {
     MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
     stubVideo();
     stubCsrf();
@@ -1120,9 +1118,12 @@ void main() {
         'playlists': [playlistJson(id: 'pl-9', name: 'Other')],
       }),
     );
-    env.server.onPost('/playlists', (req) => FakeResponse.json({'slug': 'x'}));
     env.server.onPost(
-      '/playlists/pl-9/items',
+      '/playlists',
+      (req) => FakeResponse.json({'slug': 'x', 'id': 'pl-new'}),
+    );
+    env.server.onPost(
+      '/playlists/pl-new/items',
       (req) => const FakeResponse(200, '{}'),
     );
     await pumpDetail(tester);
@@ -1145,14 +1146,14 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    // getMyPlaylists returned no 'Brand New', so the first playlist got it.
-    expect(env.server.requestsTo('/playlists/pl-9/items'), isNotEmpty);
+    expect(env.server.requestsTo('/playlists/pl-new/items'), isNotEmpty);
+    expect(env.server.requestsTo('/playlists/pl-9/items'), isEmpty);
     await unmount(tester);
   });
 
   testWidgets('tag edit sheet opens and saves new tag list', (tester) async {
     MurrtubeApi.setCookies('_murrtube_v3_session=abc; session_id=abc');
-    stubVideo();
+    stubVideo(videoProps(medium: mediaJson(isOwner: true)));
     stubCsrf();
     env.server.onPost(
       '/tag_edits',

@@ -922,7 +922,7 @@ class MurrtubeApi {
     }
     final json = jsonDecode(body) as Map<String, dynamic>;
     return Playlist(
-      id: '',
+      id: (json['id'] ?? '').toString(),
       name: name,
       description: description,
       visibility: visibility,

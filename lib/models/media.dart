@@ -52,6 +52,39 @@ class Media {
     this.hlsUrl,
   });
 
+  Media copyWith({
+    List<Tag>? tags,
+    int? commentsCount,
+    bool? viewerLiked,
+    int? likesCount,
+  }) {
+    return Media(
+      id: id,
+      shortCode: shortCode,
+      title: title,
+      url: url,
+      duration: duration,
+      durationLabel: durationLabel,
+      thumbnailUrl: thumbnailUrl,
+      previewUrl: previewUrl,
+      status: status,
+      likesCount: likesCount ?? this.likesCount,
+      viewsCount: viewsCount,
+      publishedAt: publishedAt,
+      createdAt: createdAt,
+      user: user,
+      description: description,
+      visibility: visibility,
+      commentsDisabled: commentsDisabled,
+      commentsCount: commentsCount ?? this.commentsCount,
+      tags: tags ?? this.tags,
+      viewerLiked: viewerLiked ?? this.viewerLiked,
+      isOwner: isOwner,
+      isLive: isLive,
+      hlsUrl: hlsUrl,
+    );
+  }
+
   factory Media.fromJson(Map<String, dynamic> json) {
     return Media(
       id: json['id'] as String,
