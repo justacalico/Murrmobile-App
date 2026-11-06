@@ -118,20 +118,18 @@ void main() {
         'app': 'murrmobile',
         'format_version': 1,
         'preferences': {
-          'a_bool': true,
-          'an_int': 42,
-          'a_double': 1.5,
-          'a_string': 'hi',
-          'a_list': ['x', 'y'],
+          'age_confirmed': true,
+          'app_theme': 'dark',
+          'video_quality': '720p',
+          'video_muted': true,
         },
       });
       await DataTransfer.importJson(backup);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('a_bool'), isTrue);
-      expect(prefs.getInt('an_int'), 42);
-      expect(prefs.getDouble('a_double'), 1.5);
-      expect(prefs.getString('a_string'), 'hi');
-      expect(prefs.getStringList('a_list'), ['x', 'y']);
+      expect(prefs.getBool('age_confirmed'), isTrue);
+      expect(prefs.getString('app_theme'), 'dark');
+      expect(prefs.getString('video_quality'), '720p');
+      expect(prefs.getBool('video_muted'), isTrue);
     });
 
     test('import without cookies clears login', () async {
@@ -203,7 +201,8 @@ void main() {
       expect(prefs.getBool('age_confirmed'), isNull);
       expect(prefs.getString('app_theme'), isNull);
       expect(prefs.getString('video_quality'), '480p');
-      expect(prefs.getInt('unknown_future_key'), 7);
+      // Unknown keys are dropped entirely.
+      expect(prefs.getInt('unknown_future_key'), isNull);
     });
 
     test('import parses a netscape-format cookie dump', () async {

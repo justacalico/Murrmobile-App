@@ -20,7 +20,6 @@ class DataTransfer {
     'app_theme': String,
     'video_quality': String,
     'video_muted': bool,
-    'navigation_mode': String,
   };
 
   static Future<String> exportJson() async {
@@ -64,7 +63,7 @@ class DataTransfer {
       throw const FormatException('Not a Murrmobile backup');
     }
     final version = decoded['format_version'];
-    if (version is int && version > _formatVersion) {
+    if (version is! int || version > _formatVersion) {
       throw const FormatException('Backup was made by a newer app version');
     }
 
@@ -75,6 +74,7 @@ class DataTransfer {
         final key = entry.key.toString();
         final value = entry.value;
         final expected = _knownPrefTypes[key];
+        if (expected == null) continue;
         if (expected == bool && value is! bool) continue;
         if (expected == String && value is! String) continue;
         if (value is bool) {
@@ -85,10 +85,10 @@ class DataTransfer {
           await prefs.setDouble(key, value);
         } else if (value is String) {
           await prefs.setString(key, value);
-        } else if (value is List) {
+        } else if (value is List && value.every((e) => e is String)) {
           await prefs.setStringList(
             key,
-            value.map((e) => '$e').toList(),
+            value.map((e) => e as String).toList(),
           );
         }
       }
