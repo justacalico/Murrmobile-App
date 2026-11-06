@@ -2,6 +2,16 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.0 - 2026-11-06
+#### Features
+- 登录流程校验会话并支持整串 Cookie 粘贴 - (a85157b) - HttpAnimations
+#### Bug Fixes
+- 备份导入严格校验，补齐 mounted 守卫 - (a4c69c2) - HttpAnimations
+- 页面跳转不再引用 dart:io，补导航细节 - (6bb1c59) - HttpAnimations
+- 修复收藏单、评论区与标签编辑的问题 - (12aecd1) - HttpAnimations
+
+- - -
+
 ## v0.4.5 - 2026-11-06
 #### Bug Fixes
 - 修复播放器初始化失败、重建风暴与全屏问题 - (b5c0dbc) - HttpAnimations
